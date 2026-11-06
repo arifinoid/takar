@@ -16,7 +16,7 @@ This document turns `Rencana Produk PPIC + POS Ringan untuk UMKM F&B.md` into an
 
 | Phase | Focus | Gate to advance | Status |
 | --- | --- | --- | --- |
-| 0 | Technical foundation + validation | 3–5 prospects willing to try and pay; Android build runs on 2 low-end phones | not started |
+| 0 | Technical foundation + validation | 3–5 prospects willing to try and pay; Android build runs on 2 low-end phones | in progress |
 | 1 | Stock, batches, expiry | 3 businesses use it instead of a notebook for 2 weeks | not started |
 | 2 | Recipes, production, HPP | Users trust the HPP and use it to set prices | not started |
 | 3 | Purchasing, sales, subscription | First paying customer | not started |

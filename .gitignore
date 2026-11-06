@@ -33,6 +33,10 @@ out/
 **/src-tauri/target/
 **/src-tauri/.tauri/
 
+# Tauri Android build artifacts
+**/src-tauri/gen/android/app/src/main/jniLibs/
+**/src-tauri/gen/android/app/src/main/assets/
+
 # Android
 .gradle/
 **/build/

@@ -1,0 +1,7 @@
+[package]
+name = "takar-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rust_decimal = { workspace = true }
