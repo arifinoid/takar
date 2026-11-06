@@ -1,0 +1,95 @@
+# Rust
+/target/
+**/target/
+**/*.rs.bk
+*.pdb
+*.profraw
+
+# Coverage
+lcov.info
+cobertura.xml
+tarpaulin-report.*
+
+# sqlx
+# .sqlx/ is committed on purpose: it lets CI and offline builds run
+# compile-time checked queries without a live database.
+
+# JavaScript / Bun
+node_modules/
+.bun/
+*.tsbuildinfo
+.eslintcache
+.npm/
+.yarn/
+
+# Next.js
+.next/
+out/
+.vercel/
+.turbo/
+
+# Tauri
+**/src-tauri/gen/schemas/
+**/src-tauri/target/
+**/src-tauri/.tauri/
+
+# Android
+.gradle/
+**/build/
+local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+keystore.properties
+
+# Local databases and data
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Environment
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Nix / direnv
+.envrc
+.direnv/
+result
+result-*
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun-debug.log*
+
+# Test and coverage output
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+blob-report/
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local-only documents
+Rencana Produk PPIC + POS Ringan untuk UMKM F&B.md
+
+# Misc
+*.tmp
+tmp/
