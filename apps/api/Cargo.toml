@@ -1,0 +1,24 @@
+[package]
+name = "takar-api"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+name = "takar_api"
+path = "src/lib.rs"
+
+[[bin]]
+name = "takar-api"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true }
+sqlx = { workspace = true }
+takar-db = { workspace = true }
+takar-domain = { workspace = true }
+tokio = { workspace = true }
+tower-http = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+utoipa = { workspace = true }

@@ -1,0 +1,15 @@
+{
+  "name": "takar",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "apps/shell",
+    "packages/api-client"
+  ],
+  "scripts": {
+    "dev:web": "bun run --filter web dev",
+    "build:web": "bun run --filter web build",
+    "dev:shell": "bun run --filter shell dev",
+    "check:api": "cargo clippy --workspace --all-targets -- -D warnings"
+  }
+}

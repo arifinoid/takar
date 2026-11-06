@@ -56,8 +56,16 @@
             packages = with pkgs; [
               rustToolchain
               bun
+              cargo-tauri
+              cairo
+              gdk-pixbuf
+              glib
+              gtk3
+              libsoup_3
               openssl
+              pango
               pkg-config
+              webkitgtk_4_1
               cargo-deny
               cargo-edit
               cargo-watch
