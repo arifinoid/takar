@@ -1,13 +1,10 @@
 "use client";
 
-import { ApiClient, type HealthResponse } from "@takar/api-client";
+import type { HealthResponse } from "@takar/api-client";
 import { useEffect, useState } from "react";
 
+import { api } from "@/lib/api";
 import { fill, useI18n } from "@/lib/i18n";
-
-const api = new ApiClient({
-  baseUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001",
-});
 
 type HealthState =
   | { status: "loading" }
