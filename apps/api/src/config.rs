@@ -8,6 +8,8 @@ pub struct Config {
     pub jwt_secret: String,
     pub otp_ttl_seconds: i64,
     pub jwt_ttl_seconds: i64,
+    /// Fixed OTP for local sign-in. Honored by debug builds only.
+    pub dev_otp_code: Option<String>,
 }
 
 impl Config {
@@ -36,12 +38,25 @@ impl Config {
             .and_then(|value| value.parse().ok())
             .unwrap_or(86_400);
 
+        let dev_otp_code = std::env::var("DEV_OTP_CODE")
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| {
+                let valid =
+                    value.len() == 6 && value.chars().all(|character| character.is_ascii_digit());
+                if !valid {
+                    tracing::warn!("DEV_OTP_CODE must be exactly 6 digits, ignoring it");
+                }
+                valid
+            });
+
         Self {
             port,
             database_url,
             jwt_secret,
             otp_ttl_seconds,
             jwt_ttl_seconds,
+            dev_otp_code,
         }
     }
 }

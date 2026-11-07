@@ -58,6 +58,7 @@ pub fn state(pool: PgPool, otp: CaptureOtp) -> AppState {
         otp: Arc::new(otp),
         otp_ttl_seconds: 300,
         jwt_ttl_seconds: 3_600,
+        dev_otp_code: None,
     }
 }
 
