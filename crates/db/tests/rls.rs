@@ -8,9 +8,10 @@ async fn install_app_role(pool: &PgPool) {
         r#"
         do $$
         begin
-            if not exists (select 1 from pg_roles where rolname = '{APP_ROLE}') then
+            begin
                 create role {APP_ROLE} nologin;
-            end if;
+            exception when duplicate_object then null;
+            end;
         end
         $$;
         grant usage on schema public to {APP_ROLE};
@@ -106,6 +107,61 @@ async fn begin_as(
         .expect("set user");
 
     tx
+}
+
+async fn begin_as_user(pool: &PgPool, user_id: Uuid) -> sqlx::Transaction<'_, sqlx::Postgres> {
+    let mut tx = pool.begin().await.expect("begin transaction");
+
+    sqlx::query(&format!("set local role {APP_ROLE}"))
+        .execute(&mut *tx)
+        .await
+        .expect("set role");
+
+    sqlx::query("select set_config('app.user_id', $1, true)")
+        .bind(user_id.to_string())
+        .execute(&mut *tx)
+        .await
+        .expect("set user");
+
+    tx
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn user_can_list_own_memberships_without_active_tenant(pool: PgPool) {
+    install_app_role(&pool).await;
+
+    let tenant_a = seed_tenant(&pool, "theta").await;
+    let tenant_b = seed_tenant(&pool, "iota").await;
+    let shared = Uuid::new_v4();
+
+    sqlx::query("insert into users (id, email, name) values ($1, 'shared@example.test', 'Shared')")
+        .bind(shared)
+        .execute(&pool)
+        .await
+        .expect("insert shared user");
+
+    for tenant_id in [tenant_a.tenant_id, tenant_b.tenant_id] {
+        sqlx::query("insert into memberships (tenant_id, user_id, role) values ($1, $2, 'viewer')")
+            .bind(tenant_id)
+            .bind(shared)
+            .execute(&pool)
+            .await
+            .expect("insert shared membership");
+    }
+
+    let mut tx = begin_as_user(&pool, shared).await;
+
+    let tenant_ids: Vec<Uuid> = sqlx::query("select tenant_id from memberships")
+        .fetch_all(&mut *tx)
+        .await
+        .expect("read own memberships")
+        .iter()
+        .map(|row| row.get("tenant_id"))
+        .collect();
+
+    assert_eq!(tenant_ids.len(), 2, "both memberships should be visible");
+    assert!(tenant_ids.contains(&tenant_a.tenant_id));
+    assert!(tenant_ids.contains(&tenant_b.tenant_id));
 }
 
 #[sqlx::test(migrations = "../../migrations")]

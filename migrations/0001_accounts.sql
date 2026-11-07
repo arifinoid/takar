@@ -112,6 +112,10 @@ create policy memberships_tenant on memberships
     for all using (tenant_id = app_tenant_id())
     with check (tenant_id = app_tenant_id());
 
+-- A user must be able to list their own memberships before choosing a tenant.
+create policy memberships_self_select on memberships
+    for select using (user_id = app_user_id());
+
 alter table invitations enable row level security;
 alter table invitations force row level security;
 create policy invitations_tenant on invitations

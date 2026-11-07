@@ -77,8 +77,9 @@ Goal: the repo builds, multi-tenant auth works, and the Android app installs on 
 | P0-09 | RBAC matrix in `takar-domain`: `Role`, `Permission`, `can()` | Matrix covers owner/admin/production/viewer; pure, no IO, covered by golden tests |
 | P0-10 | `AuthContext` extractor and `/me`: JWT → active membership → role | Suspended membership gets 403; a role change applies on the next request without re-login; `/me` returns the effective permissions |
 | P0-11 | Permission-gated routes + invitation flow | Every mutating route declares a permission; removing or demoting the last owner fails inside the transaction; 403 paths have integration tests |
+| P0-12 | UI i18n foundation: `id` and `en` dictionaries, locale switch, no hardcoded copy | Login and dashboard render in both locales; a missing key fails the build |
 
-**Phase 0 gate:** P0-01 through P0-11 are done and P0-08 yields 3–5 prospects. Without this gate, phase 1 can still be built, but do not claim product validation.
+**Phase 0 gate:** P0-01 through P0-12 are done and P0-08 yields 3–5 prospects. Without this gate, phase 1 can still be built, but do not claim product validation.
 
 ---
 
@@ -180,6 +181,14 @@ Rules:
 - Plan limits are entitlements, not permissions: check them in the service layer before creating a member, material, recipe, or warehouse.
 - Role checks never live in RLS policies; RLS only answers "which tenant owns this row".
 
+### Pre-tenant lookups
+
+Login and invitation acceptance both happen before a tenant is known, and they are not the same case:
+
+- **OTP login** does not assume a tenant. A user may belong to zero tenants (first signup) or several. Resolve the user by email/phone through a narrow `SECURITY DEFINER` function, set `app.user_id`, and list that user's memberships. The self-select policy on `memberships` allows this across tenants without opening other rows. Signup creates the tenant and the first owner membership afterwards.
+- **Invitation acceptance** always happens inside an existing tenant, but the accepting user does not know which one yet. Resolve `tenant_id`, role, status, and expiry from `token_hash` through a second definer function, then set `app.tenant_id` and continue under normal RLS.
+- Both functions return only the columns needed for that step, pin `search_path`, and are revoked from `PUBLIC`.
+
 ---
 
 ## Schema issues to fix before the first migration
@@ -215,7 +224,7 @@ Do not decide these alone. Ask the user, then record the outcome here.
 | D9 | Crate and package naming: `takar-` prefix? | Confirm once at P0-01 so nothing gets renamed mid-flight |
 | D10 | RBAC: put the role in the JWT or resolve it per request? | Resolve per request from `memberships`; JWT stays `user_id` + `tenant_id` so revocation is immediate |
 | D11 | Mobile monetization: web checkout or in-app purchase? | Web checkout; keep billing read-only inside the app until store rules are settled |
-| D12 | UI copy language: the pen.dev frames use Indonesian, the project convention says English | Pick one before implementing P0-07. Recommendation: Indonesian UI copy for the target market, English for code and docs |
+| D12 | UI copy language: the pen.dev frames use Indonesian, the project convention says English | **Decided:** UI copy is localized through i18n with `id` and `en`; code, API messages, and docs stay English |
 
 ---
 

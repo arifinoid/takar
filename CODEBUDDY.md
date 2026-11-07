@@ -45,14 +45,13 @@ cargo sqlx prepare --workspace             # refresh .sqlx after query changes
 Local Postgres for development and RLS tests:
 
 ```bash
-initdb -D .tmp/pgdata -U postgres --auth=trust --no-locale -E UTF8
-pg_ctl -D .tmp/pgdata -o "-p 55432 -k /tmp" -l .tmp/postgres.log start
-createdb -h 127.0.0.1 -p 55432 -U postgres takar_test
+docker compose up -d db
+docker compose down                    # stop, keeps the volume
 
-DATABASE_URL=postgres://postgres@127.0.0.1:55432/takar_test cargo test -p takar-db
+DATABASE_URL=postgres://takar:takar@127.0.0.1:5432/takar cargo test -p takar-db
 ```
 
-`#[sqlx::test]` creates a throwaway database per test, so the URL must point at a server where the user can create databases.
+`#[sqlx::test]` creates a throwaway database per test, so the URL must point at a server where the user can create databases. The compose user is the cluster superuser, which satisfies that requirement for development only.
 
 Web and shell (after `apps/web` and `apps/shell` exist):
 
@@ -110,7 +109,7 @@ Use `rust_decimal` and Postgres `NUMERIC` end to end. Never `f64` for money or q
 
 ## Conventions
 
-- English everywhere: identifiers, comments, test names, API/CLI messages, UI copy, and documentation. Indonesian is reserved for conversation.
+- English everywhere in code and docs: identifiers, comments, test names, API/CLI messages, and documentation. UI copy comes from i18n resources with `id` and `en` locales; never hardcode strings in components.
 - Migrations are forward-only and numbered; never edit an applied migration.
 - Core functions are pure and covered by golden tests (rounding, null expiry, shortfall, conversion chains).
 - Integration tests hit a real Postgres with RLS enabled. Mocked DB tests are not acceptable for tenancy or stock math.
