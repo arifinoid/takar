@@ -1,0 +1,84 @@
+use crate::error::ApiError;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Contact {
+    Email(String),
+    Phone(String),
+}
+
+impl Contact {
+    pub fn parse(raw: &str) -> Result<Self, ApiError> {
+        let value = raw.trim();
+
+        if value.is_empty() {
+            return Err(ApiError::BadRequest("contact_required"));
+        }
+
+        if value.contains('@') {
+            let email = value.to_lowercase();
+            let valid = email.len() >= 5
+                && !email.starts_with('@')
+                && !email.ends_with('@')
+                && email.matches('@').count() == 1;
+
+            return if valid {
+                Ok(Contact::Email(email))
+            } else {
+                Err(ApiError::BadRequest("invalid_email"))
+            };
+        }
+
+        let phone: String = value
+            .chars()
+            .filter(|character| !matches!(character, ' ' | '-' | '(' | ')' | '.'))
+            .collect();
+
+        let digits = phone
+            .strip_prefix('+')
+            .ok_or(ApiError::BadRequest("invalid_phone"))?;
+
+        let valid = (8..=15).contains(&digits.len())
+            && digits.chars().all(|character| character.is_ascii_digit());
+
+        if valid {
+            Ok(Contact::Phone(phone))
+        } else {
+            Err(ApiError::BadRequest("invalid_phone"))
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
+        match self {
+            Contact::Email(value) | Contact::Phone(value) => value,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalizes_email_case() {
+        assert!(matches!(
+            Contact::parse(" Owner@Example.TEST "),
+            Ok(Contact::Email(email)) if email == "owner@example.test"
+        ));
+    }
+
+    #[test]
+    fn normalizes_phone_separators() {
+        assert!(matches!(
+            Contact::parse("+62 812-3456-7890"),
+            Ok(Contact::Phone(phone)) if phone == "+6281234567890"
+        ));
+    }
+
+    #[test]
+    fn rejects_invalid_contacts() {
+        assert!(Contact::parse("").is_err());
+        assert!(Contact::parse("not-an-email@").is_err());
+        assert!(Contact::parse("0812345678").is_err());
+        assert!(Contact::parse("+12").is_err());
+    }
+}

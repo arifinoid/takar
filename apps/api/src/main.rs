@@ -1,6 +1,11 @@
 use std::net::SocketAddr;
+use std::sync::Arc;
 
-use takar_api::{config::Config, router, AppState};
+use takar_api::{
+    auth::{otp::LogOtpSender, JwtConfig},
+    config::{Config, DEV_JWT_SECRET},
+    router, AppState,
+};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 #[tokio::main]
@@ -8,6 +13,10 @@ async fn main() -> anyhow::Result<()> {
     init_tracing();
 
     let config = Config::from_env();
+
+    if config.jwt_secret == DEV_JWT_SECRET {
+        tracing::warn!("JWT_SECRET is not set, using the development secret");
+    }
 
     let db = match config.database_url.as_deref() {
         Some(url) => match takar_db::connect(url).await {
@@ -26,11 +35,22 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    let state = AppState {
+        db,
+        jwt: JwtConfig {
+            secret: config.jwt_secret,
+            ttl_seconds: config.jwt_ttl_seconds,
+        },
+        otp: Arc::new(LogOtpSender),
+        otp_ttl_seconds: config.otp_ttl_seconds,
+        jwt_ttl_seconds: config.jwt_ttl_seconds,
+    };
+
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
 
     tracing::info!(%addr, "takar-api listening");
-    axum::serve(listener, router(AppState { db }))
+    axum::serve(listener, router(state))
         .with_graceful_shutdown(shutdown_signal())
         .await?;
 
