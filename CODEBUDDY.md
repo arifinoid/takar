@@ -33,6 +33,8 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
 ```
 
+Local sign-in: the API loads `.env` at startup. With `DEV_OTP_CODE` set (default `000000`), debug builds use that fixed code for any contact instead of a random one, so authenticated routes are reachable without reading the log. Release builds always randomize.
+
 Database:
 
 ```bash

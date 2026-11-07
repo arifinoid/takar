@@ -70,6 +70,16 @@ pub struct MeResponse {
     pub permissions: Vec<String>,
 }
 
+/// Fixed code for local development. Release builds always randomize, so a
+/// misconfigured environment cannot turn this into a backdoor.
+fn dev_code(state: &AppState) -> Option<String> {
+    if cfg!(debug_assertions) {
+        state.dev_otp_code.clone()
+    } else {
+        None
+    }
+}
+
 pub async fn request_otp(
     State(state): State<AppState>,
     Json(body): Json<OtpRequestBody>,
@@ -77,7 +87,7 @@ pub async fn request_otp(
     let contact = Contact::parse(&body.contact)?;
     let db = state.db()?;
 
-    let code = otp::generate_code();
+    let code = dev_code(&state).unwrap_or_else(otp::generate_code);
     let code_hash = secret::hash(&state.jwt.secret, &code);
     let expires_at = Utc::now() + Duration::seconds(state.otp_ttl_seconds);
 

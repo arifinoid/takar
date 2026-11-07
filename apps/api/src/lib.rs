@@ -26,6 +26,8 @@ pub struct AppState {
     pub otp: Arc<dyn OtpSender>,
     pub otp_ttl_seconds: i64,
     pub jwt_ttl_seconds: i64,
+    /// Fixed OTP for local sign-in. Ignored by release builds.
+    pub dev_otp_code: Option<String>,
 }
 
 impl AppState {
