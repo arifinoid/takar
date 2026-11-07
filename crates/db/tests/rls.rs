@@ -4,14 +4,21 @@ use uuid::Uuid;
 const APP_ROLE: &str = "takar_app";
 
 async fn install_app_role(pool: &PgPool) {
+    // Roles are cluster-wide, so every test database races to create the same
+    // one. Advisory locks are per database and cannot serialize that, so the
+    // create tolerates both codes a losing racer can see: duplicate_object in
+    // the normal path and a unique violation on pg_authid under concurrency.
     sqlx::raw_sql(&format!(
         r#"
         do $$
         begin
-            begin
-                create role {APP_ROLE} nologin;
-            exception when duplicate_object then null;
-            end;
+            if not exists (select 1 from pg_roles where rolname = '{APP_ROLE}') then
+                begin
+                    create role {APP_ROLE} nologin;
+                exception
+                    when duplicate_object or unique_violation then null;
+                end;
+            end if;
         end
         $$;
         grant usage on schema public to {APP_ROLE};
