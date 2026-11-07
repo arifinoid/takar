@@ -42,6 +42,17 @@ sqlx migrate add <name>                    # forward-only, numbered
 cargo sqlx prepare --workspace             # refresh .sqlx after query changes
 ```
 
+Local Postgres for development and RLS tests:
+
+```bash
+docker compose up -d db
+docker compose down                    # stop, keeps the volume
+
+DATABASE_URL=postgres://takar:takar@127.0.0.1:5432/takar cargo test -p takar-db
+```
+
+`#[sqlx::test]` creates a throwaway database per test, so the URL must point at a server where the user can create databases. The compose user is the cluster superuser, which satisfies that requirement for development only.
+
 Web and shell (after `apps/web` and `apps/shell` exist):
 
 ```bash
@@ -73,7 +84,7 @@ Stock is a batch ledger, not a scalar. `material_batches.qty_remaining` is on-ha
 
 ### Tenancy
 
-Every business row carries `tenant_id`. Postgres RLS is the enforcement layer; app-level filters are defense in depth. The JWT carries `user_id` plus the active `tenant_id`, and each request transaction sets `app.tenant_id` via `SET LOCAL`. Child tables without `tenant_id` (`recipe_items`, `sale_items`, `production_consumptions`, `unit_conversions`) need either their own column or an `EXISTS` policy against the parent — decide before writing policies.
+Every business row carries `tenant_id`. Postgres RLS is the enforcement layer; app-level filters are defense in depth. The JWT carries `user_id` plus the active `tenant_id`, and each request transaction sets `app.tenant_id` and `app.user_id` via `SET LOCAL`. RLS is forced on every account table, and tests must `SET LOCAL ROLE` to a non-owner role because the table owner bypasses policies. Child tables without `tenant_id` (`recipe_items`, `sale_items`, `production_consumptions`, `unit_conversions`) need either their own column or an `EXISTS` policy against the parent — decide before writing policies.
 
 ### Business invariants
 
@@ -98,7 +109,7 @@ Use `rust_decimal` and Postgres `NUMERIC` end to end. Never `f64` for money or q
 
 ## Conventions
 
-- English everywhere: identifiers, comments, test names, API/CLI messages, UI copy, and documentation. Indonesian is reserved for conversation.
+- English everywhere in code and docs: identifiers, comments, test names, API/CLI messages, and documentation. UI copy comes from i18n resources with `id` and `en` locales; never hardcode strings in components.
 - Migrations are forward-only and numbered; never edit an applied migration.
 - Core functions are pure and covered by golden tests (rounding, null expiry, shortfall, conversion chains).
 - Integration tests hit a real Postgres with RLS enabled. Mocked DB tests are not acceptable for tenancy or stock math.

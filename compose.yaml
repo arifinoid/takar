@@ -1,0 +1,22 @@
+# Local development database. Credentials are intentionally weak and
+# must never be reused outside a developer machine.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: takar-db
+    environment:
+      POSTGRES_USER: takar
+      POSTGRES_PASSWORD: takar
+      POSTGRES_DB: takar
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - takar-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U takar -d takar"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  takar-db-data:

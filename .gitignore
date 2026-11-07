@@ -94,6 +94,9 @@ desktop.ini
 # Local-only documents
 Rencana Produk PPIC + POS Ringan untuk UMKM F&B.md
 
+# Local development state
+.tmp/
+
 # Misc
 *.tmp
 tmp/

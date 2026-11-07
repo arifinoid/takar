@@ -97,6 +97,8 @@
               openssl
               pango
               pkg-config
+              postgresql_16
+              sqlx-cli
               webkitgtk_4_1
               cargo-deny
               cargo-edit
