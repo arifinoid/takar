@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use rand::Rng;
-use sha2::{Digest, Sha256};
 
 #[async_trait]
 pub trait OtpSender: Send + Sync {
@@ -22,14 +21,6 @@ pub fn generate_code() -> String {
     format!("{:06}", rand::thread_rng().gen_range(0..1_000_000))
 }
 
-pub fn hash_code(secret: &str, code: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(secret.as_bytes());
-    hasher.update(b":");
-    hasher.update(code.as_bytes());
-    hex::encode(hasher.finalize())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -41,12 +32,5 @@ mod tests {
             assert_eq!(code.len(), 6);
             assert!(code.chars().all(|character| character.is_ascii_digit()));
         }
-    }
-
-    #[test]
-    fn hashes_are_stable_and_secret_dependent() {
-        assert_eq!(hash_code("secret", "123456"), hash_code("secret", "123456"));
-        assert_ne!(hash_code("secret", "123456"), hash_code("other", "123456"));
-        assert_ne!(hash_code("secret", "123456"), hash_code("secret", "654321"));
     }
 }
