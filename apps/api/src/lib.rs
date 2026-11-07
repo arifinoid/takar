@@ -4,6 +4,7 @@ pub mod auth;
 pub mod config;
 pub mod error;
 pub mod master;
+pub mod stock;
 
 use std::sync::Arc;
 
@@ -47,6 +48,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api-docs/openapi.json", get(openapi))
         .merge(auth::routes())
         .merge(master::routes())
+        .merge(stock::routes())
         .with_state(state)
         .layer(cors())
         .layer(TraceLayer::new_for_http())

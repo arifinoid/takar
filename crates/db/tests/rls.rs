@@ -318,3 +318,71 @@ async fn materials_are_scoped_to_the_active_tenant(pool: PgPool) {
 
     assert!(denied.is_err(), "writing into another tenant must fail");
 }
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn batches_are_scoped_to_the_active_tenant(pool: PgPool) {
+    install_app_role(&pool).await;
+
+    let tenant_a = seed_tenant(&pool, "alpha").await;
+    let tenant_b = seed_tenant(&pool, "beta").await;
+
+    let (unit_id,): (Uuid,) = sqlx::query_as("select id from units where code = 'kg'")
+        .fetch_one(&pool)
+        .await
+        .expect("kg unit");
+
+    let mut materials = Vec::new();
+    let mut batches = Vec::new();
+
+    for (tenant_id, name) in [
+        (tenant_a.tenant_id, "Tepung"),
+        (tenant_b.tenant_id, "Cabai"),
+    ] {
+        let (material_id,): (Uuid,) = sqlx::query_as(
+            "insert into materials (tenant_id, name, base_unit_id) values ($1, $2, $3) returning id",
+        )
+        .bind(tenant_id)
+        .bind(name)
+        .bind(unit_id)
+        .fetch_one(&pool)
+        .await
+        .expect("insert material");
+
+        let (batch_id,): (Uuid,) = sqlx::query_as(
+            "insert into material_batches
+                 (tenant_id, material_id, received_at, qty_received, qty_remaining, unit_cost)
+             values ($1, $2, current_date, 10, 10, 1000)
+             returning id",
+        )
+        .bind(tenant_id)
+        .bind(material_id)
+        .fetch_one(&pool)
+        .await
+        .expect("insert batch");
+
+        materials.push(material_id);
+        batches.push(batch_id);
+    }
+
+    let mut tx = begin_as(&pool, tenant_a.tenant_id, tenant_a.owner_id).await;
+
+    let rows = sqlx::query("select id from material_batches")
+        .fetch_all(&mut *tx)
+        .await
+        .expect("read batches");
+
+    assert_eq!(rows.len(), 1, "only the active tenant should be visible");
+    assert_eq!(rows[0].get::<Uuid, _>("id"), batches[0]);
+
+    let denied = sqlx::query(
+        "insert into material_batches
+             (tenant_id, material_id, received_at, qty_received, qty_remaining, unit_cost)
+         values ($1, $2, current_date, 1, 1, 1)",
+    )
+    .bind(tenant_b.tenant_id)
+    .bind(materials[1])
+    .execute(&mut *tx)
+    .await;
+
+    assert!(denied.is_err(), "writing into another tenant must fail");
+}
