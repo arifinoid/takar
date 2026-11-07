@@ -1,5 +1,9 @@
 //! Shared domain types and the HTTP API contract.
 
+pub mod rbac;
+
+pub use rbac::{Permission, Role};
+
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
