@@ -201,8 +201,8 @@ The draft SQL in the product document is not ready to use as-is. Settle these in
 2. **`unit_conversions` has no `tenant_id`** while `units.tenant_id` is nullable. **Decided:** conversions are global and seeded with the system units (kg→g, l→ml, lusin→pcs); material-specific conversions such as "1 sack = 25 kg" are deferred until a customer needs them.
 3. **No `warehouse_id`** even though Pro sells 2 warehouses. Add a nullable column to batches and movements now, or accept a large migration in phase 4.
 4. **`products.stock_qty` is a single number** — finished goods cannot be FEFO-allocated or expiry-tracked. See D8.
-5. **`stock_movements.qty`** has no sign convention or constraint. Define outbound as negative, inbound as positive, and add matching checks.
-6. **`materials.last_cost`** is derived data that can drift. Define it as a read-only cache updated from the latest batch.
+5. **`stock_movements.qty`** has no sign convention or constraint. **Decided:** inbound is positive and outbound is negative, enforced by the `stock_movements_sign` check added in `0005_batches.sql`; only `adjustment` may go either way.
+6. **`materials.last_cost`** is derived data that can drift. **Decided:** it is a read-only cache, written only by stock-in from the latest purchase; batches stay authoritative.
 7. **`tenants.plan` is free text** — make it an enum or check constraint so plan limits can be trusted.
 8. **Indexes for the daily job** — add an index on `material_batches(tenant_id, expires_at)` for active batches, plus a fast way to detect materials below `min_stock`.
 9. **`production_consumptions` has no primary key** — add an `id` or a composite PK on `(production_order_id, batch_id)`.
