@@ -198,7 +198,7 @@ Login and invitation acceptance both happen before a tenant is known, and they a
 The draft SQL in the product document is not ready to use as-is. Settle these in the first migration instead of deferring them.
 
 1. **Child tables without `tenant_id`** — `recipe_items`, `sale_items`, `production_consumptions`, `unit_conversions`. RLS cannot be attached directly. Choose either an added `tenant_id` column or an `EXISTS` policy against the parent table. `EXISTS` keeps the schema smaller but is slower and easier to get wrong.
-2. **`unit_conversions` has no `tenant_id`** while `units.tenant_id` is nullable. Whether conversions are global or per tenant is unresolved; settle it before P1-01.
+2. **`unit_conversions` has no `tenant_id`** while `units.tenant_id` is nullable. **Decided:** conversions are global and seeded with the system units (kg→g, l→ml, lusin→pcs); material-specific conversions such as "1 sack = 25 kg" are deferred until a customer needs them.
 3. **No `warehouse_id`** even though Pro sells 2 warehouses. Add a nullable column to batches and movements now, or accept a large migration in phase 4.
 4. **`products.stock_qty` is a single number** — finished goods cannot be FEFO-allocated or expiry-tracked. See D8.
 5. **`stock_movements.qty`** has no sign convention or constraint. Define outbound as negative, inbound as positive, and add matching checks.

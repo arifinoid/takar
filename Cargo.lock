@@ -3941,6 +3941,7 @@ dependencies = [
  "http-body-util",
  "jsonwebtoken",
  "rand 0.8.8",
+ "rust_decimal",
  "serde",
  "serde_json",
  "sha2",

@@ -272,3 +272,49 @@ async fn duplicate_pending_invitation_is_rejected(pool: PgPool) {
 
     assert!(second.is_err(), "only one pending invitation per contact");
 }
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn materials_are_scoped_to_the_active_tenant(pool: PgPool) {
+    install_app_role(&pool).await;
+
+    let tenant_a = seed_tenant(&pool, "alpha").await;
+    let tenant_b = seed_tenant(&pool, "beta").await;
+
+    let (unit_id,): (Uuid,) = sqlx::query_as("select id from units where code = 'kg'")
+        .fetch_one(&pool)
+        .await
+        .expect("kg unit");
+
+    for (tenant_id, name) in [
+        (tenant_a.tenant_id, "Tepung"),
+        (tenant_b.tenant_id, "Cabai"),
+    ] {
+        sqlx::query("insert into materials (tenant_id, name, base_unit_id) values ($1, $2, $3)")
+            .bind(tenant_id)
+            .bind(name)
+            .bind(unit_id)
+            .execute(&pool)
+            .await
+            .expect("insert material");
+    }
+
+    let mut tx = begin_as(&pool, tenant_a.tenant_id, tenant_a.owner_id).await;
+
+    let rows = sqlx::query("select name from materials")
+        .fetch_all(&mut *tx)
+        .await
+        .expect("read materials");
+
+    assert_eq!(rows.len(), 1, "only the active tenant should be visible");
+    assert_eq!(rows[0].get::<String, _>("name"), "Tepung");
+
+    let denied = sqlx::query(
+        "insert into materials (tenant_id, name, base_unit_id) values ($1, 'Bawang', $2)",
+    )
+    .bind(tenant_b.tenant_id)
+    .bind(unit_id)
+    .execute(&mut *tx)
+    .await;
+
+    assert!(denied.is_err(), "writing into another tenant must fail");
+}
