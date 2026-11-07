@@ -42,6 +42,18 @@ sqlx migrate add <name>                    # forward-only, numbered
 cargo sqlx prepare --workspace             # refresh .sqlx after query changes
 ```
 
+Local Postgres for development and RLS tests:
+
+```bash
+initdb -D .tmp/pgdata -U postgres --auth=trust --no-locale -E UTF8
+pg_ctl -D .tmp/pgdata -o "-p 55432 -k /tmp" -l .tmp/postgres.log start
+createdb -h 127.0.0.1 -p 55432 -U postgres takar_test
+
+DATABASE_URL=postgres://postgres@127.0.0.1:55432/takar_test cargo test -p takar-db
+```
+
+`#[sqlx::test]` creates a throwaway database per test, so the URL must point at a server where the user can create databases.
+
 Web and shell (after `apps/web` and `apps/shell` exist):
 
 ```bash
@@ -73,7 +85,7 @@ Stock is a batch ledger, not a scalar. `material_batches.qty_remaining` is on-ha
 
 ### Tenancy
 
-Every business row carries `tenant_id`. Postgres RLS is the enforcement layer; app-level filters are defense in depth. The JWT carries `user_id` plus the active `tenant_id`, and each request transaction sets `app.tenant_id` via `SET LOCAL`. Child tables without `tenant_id` (`recipe_items`, `sale_items`, `production_consumptions`, `unit_conversions`) need either their own column or an `EXISTS` policy against the parent — decide before writing policies.
+Every business row carries `tenant_id`. Postgres RLS is the enforcement layer; app-level filters are defense in depth. The JWT carries `user_id` plus the active `tenant_id`, and each request transaction sets `app.tenant_id` and `app.user_id` via `SET LOCAL`. RLS is forced on every account table, and tests must `SET LOCAL ROLE` to a non-owner role because the table owner bypasses policies. Child tables without `tenant_id` (`recipe_items`, `sale_items`, `production_consumptions`, `unit_conversions`) need either their own column or an `EXISTS` policy against the parent — decide before writing policies.
 
 ### Business invariants
 

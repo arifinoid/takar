@@ -39,6 +39,25 @@ Rules:
 - Billing is sold on the web; do not add in-app purchase before the store rules are decided (D11).
 - The server stays the source of truth. The client may run `takar-core` for previews only.
 
+## UI source of truth
+
+The UI design lives in pen.dev (`takar.pen`, 25 top-level frames). Implement screens from that file; do not invent layouts. Desktop frames are 1440 wide, mobile frames are 390 wide.
+
+| Group | Frames | Phase |
+| --- | --- | --- |
+| Auth | 13 · Desktop — Login WhatsApp OTP, M1 · Login OTP | 0 |
+| Stock | 01 · Ringkasan, 02 · Stok Bahan, 03 · Batch & FEFO, M2 · Beranda, M3 · Stok Bahan | 1 |
+| Production | 04 · Produk & HPP, 05 · Resep & BOM, 06 · Catat Produksi, M4 · Catat Produksi, M5 · Produksi Tersimpan | 2 |
+| Commerce | 07 · POS & Penjualan, 08 · Rekomendasi Belanja, M6 · Kasir | 3 |
+| Alerts and team | 09 · Alert WhatsApp, 10 · Tim & Langganan, 11 · Laporan, 12 · Pengaturan, M7 · Alert | 1–3 |
+| System | 00 · Design System, Button, Badge, Field, Nav Item, Stat Card, POS Tile, Cover, Prototype | 0 |
+
+Rules:
+
+- Reuse the pen.dev components and tokens instead of restyling per screen.
+- The Tauri Android build follows the mobile frames; the web build must cover both desktop and mobile layouts.
+- New screens require a design update first; do not ship an undesigned screen.
+
 ---
 
 ## Phase 0 — Foundation + validation
@@ -196,6 +215,7 @@ Do not decide these alone. Ask the user, then record the outcome here.
 | D9 | Crate and package naming: `takar-` prefix? | Confirm once at P0-01 so nothing gets renamed mid-flight |
 | D10 | RBAC: put the role in the JWT or resolve it per request? | Resolve per request from `memberships`; JWT stays `user_id` + `tenant_id` so revocation is immediate |
 | D11 | Mobile monetization: web checkout or in-app purchase? | Web checkout; keep billing read-only inside the app until store rules are settled |
+| D12 | UI copy language: the pen.dev frames use Indonesian, the project convention says English | Pick one before implementing P0-07. Recommendation: Indonesian UI copy for the target market, English for code and docs |
 
 ---
 
