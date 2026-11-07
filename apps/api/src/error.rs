@@ -48,6 +48,25 @@ impl IntoResponse for ApiError {
     }
 }
 
+impl ApiError {
+    /// Maps write-time Postgres errors onto API errors.
+    ///
+    /// `duplicate` names the conflict code the caller wants for a unique
+    /// violation, since only the handler knows which index was hit.
+    pub fn from_write(error: sqlx::Error, duplicate: &'static str) -> Self {
+        if let sqlx::Error::Database(database) = &error {
+            match database.code().as_deref() {
+                Some("23505") => return ApiError::Conflict(duplicate),
+                Some("23503") => return ApiError::BadRequest("invalid_reference"),
+                Some("23514") => return ApiError::BadRequest("invalid_value"),
+                _ => {}
+            }
+        }
+
+        ApiError::Internal(error.into())
+    }
+}
+
 impl From<sqlx::Error> for ApiError {
     fn from(error: sqlx::Error) -> Self {
         ApiError::Internal(error.into())
