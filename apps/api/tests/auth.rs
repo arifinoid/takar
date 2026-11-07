@@ -1,9 +1,10 @@
 mod common;
 
 use axum::http::StatusCode;
-use common::{call, login, signup, test_app, user_of, CaptureOtp};
+use common::{call, login, signup, state, test_app, user_of, CaptureOtp};
 use serde_json::json;
 use sqlx::PgPool;
+use takar_api::router;
 use uuid::Uuid;
 
 #[sqlx::test(migrations = "../../migrations")]
@@ -83,6 +84,37 @@ async fn second_tenant_requires_selection(pool: PgPool) {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(me["tenant"]["id"], second_tenant.to_string());
     assert_eq!(me["role"], "admin");
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn dev_otp_code_replaces_the_generated_code(pool: PgPool) {
+    let otp = CaptureOtp::default();
+    let mut app_state = state(pool, otp.clone());
+    app_state.dev_otp_code = Some("000000".to_string());
+    let app = router(app_state);
+
+    let (status, _) = call(
+        &app,
+        "POST",
+        "/auth/otp/request",
+        Some(json!({ "contact": "+628000000000" })),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::ACCEPTED);
+    assert_eq!(otp.last_code(), "000000");
+
+    let (status, body) = call(
+        &app,
+        "POST",
+        "/auth/otp/verify",
+        Some(json!({ "contact": "+628000000000", "code": "000000" })),
+        None,
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["requires_tenant_selection"], false);
 }
 
 #[sqlx::test(migrations = "../../migrations")]

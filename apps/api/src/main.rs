@@ -12,10 +12,21 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 async fn main() -> anyhow::Result<()> {
     init_tracing();
 
+    // .env is optional and never overrides variables that are already set.
+    let _ = dotenvy::dotenv();
+
     let config = Config::from_env();
 
     if config.jwt_secret == DEV_JWT_SECRET {
         tracing::warn!("JWT_SECRET is not set, using the development secret");
+    }
+
+    if config.dev_otp_code.is_some() {
+        if cfg!(debug_assertions) {
+            tracing::warn!("DEV_OTP_CODE is set: any contact can sign in with the fixed code");
+        } else {
+            tracing::warn!("DEV_OTP_CODE is set but ignored: release builds always randomize");
+        }
     }
 
     let db = match config.database_url.as_deref() {
@@ -44,6 +55,7 @@ async fn main() -> anyhow::Result<()> {
         otp: Arc::new(LogOtpSender),
         otp_ttl_seconds: config.otp_ttl_seconds,
         jwt_ttl_seconds: config.jwt_ttl_seconds,
+        dev_otp_code: config.dev_otp_code,
     };
 
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
