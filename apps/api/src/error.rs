@@ -10,7 +10,9 @@ pub enum ApiError {
     BadRequest(&'static str),
     Unauthorized(&'static str),
     Forbidden(&'static str),
+    NotFound(&'static str),
     TooManyRequests(&'static str),
+    Conflict(&'static str),
     ServiceUnavailable,
     Internal(anyhow::Error),
 }
@@ -21,7 +23,9 @@ impl IntoResponse for ApiError {
             ApiError::BadRequest(code) => (StatusCode::BAD_REQUEST, code),
             ApiError::Unauthorized(code) => (StatusCode::UNAUTHORIZED, code),
             ApiError::Forbidden(code) => (StatusCode::FORBIDDEN, code),
+            ApiError::NotFound(code) => (StatusCode::NOT_FOUND, code),
             ApiError::TooManyRequests(code) => (StatusCode::TOO_MANY_REQUESTS, code),
+            ApiError::Conflict(code) => (StatusCode::CONFLICT, code),
             ApiError::ServiceUnavailable => {
                 (StatusCode::SERVICE_UNAVAILABLE, "database_unavailable")
             }

@@ -52,6 +52,20 @@ impl Contact {
             Contact::Email(value) | Contact::Phone(value) => value,
         }
     }
+
+    pub fn email(&self) -> Option<&str> {
+        match self {
+            Contact::Email(value) => Some(value),
+            Contact::Phone(_) => None,
+        }
+    }
+
+    pub fn phone(&self) -> Option<&str> {
+        match self {
+            Contact::Phone(value) => Some(value),
+            Contact::Email(_) => None,
+        }
+    }
 }
 
 #[cfg(test)]

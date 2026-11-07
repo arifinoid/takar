@@ -178,6 +178,8 @@ Rules:
 - The JWT carries `user_id` + `tenant_id` only. Resolve the role per request from `memberships` so suspension and role changes apply immediately.
 - `/me` returns the active tenant, role, and effective permissions. The UI does not duplicate the matrix.
 - Every mutating route declares a permission. No ad-hoc role checks inside handlers.
+- The declaration is part of the handler signature: `Require<CanManageMembers>` in `takar-api::auth::guard` resolves the role and rejects with `403 permission_denied`.
+- A member may only manage or grant roles strictly below their own; an owner may also manage another owner so a tenant can hand over. Invitations never carry the owner role.
 - Plan limits are entitlements, not permissions: check them in the service layer before creating a member, material, recipe, or warehouse.
 - Role checks never live in RLS policies; RLS only answers "which tenant owns this row".
 

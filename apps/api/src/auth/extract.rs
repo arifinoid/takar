@@ -19,6 +19,14 @@ pub struct TenantSelection {
     pub user_id: Uuid,
 }
 
+/// Any authenticated user, whether or not a tenant is active yet.
+///
+/// Invitation acceptance needs this: an invitee may hold a tenant-selection
+/// token (no membership yet) or a session token (already in another tenant).
+pub struct UserIdentity {
+    pub user_id: Uuid,
+}
+
 fn bearer(parts: &Parts) -> Result<&str, ApiError> {
     let header = parts
         .headers
@@ -73,6 +81,21 @@ impl FromRequestParts<AppState> for AuthContext {
             user_id: claims.sub,
             tenant_id,
             role,
+        })
+    }
+}
+
+impl FromRequestParts<AppState> for UserIdentity {
+    type Rejection = ApiError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
+        let claims = state.jwt.decode(bearer(parts)?)?;
+
+        Ok(Self {
+            user_id: claims.sub,
         })
     }
 }

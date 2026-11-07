@@ -149,6 +149,26 @@ impl Role {
         self.permissions().contains(&permission)
     }
 
+    /// Ranks roles for management checks. Higher outranks lower.
+    pub const fn rank(self) -> u8 {
+        match self {
+            Role::Owner => 3,
+            Role::Admin => 2,
+            Role::Production => 1,
+            Role::Viewer => 0,
+        }
+    }
+
+    /// Whether this role may act on a member holding `target`, including
+    /// assigning `target` to someone else.
+    ///
+    /// Everyone is limited to roles strictly below their own, so an admin
+    /// cannot manage another admin. The one exception is owner over owner:
+    /// a tenant must be able to hand over or remove a co-owner.
+    pub const fn can_manage(self, target: Role) -> bool {
+        self.rank() > target.rank() || matches!((self, target), (Role::Owner, Role::Owner))
+    }
+
     pub const fn as_str(self) -> &'static str {
         match self {
             Role::Owner => "owner",
@@ -307,6 +327,24 @@ mod tests {
             names(Role::Owner.permissions()).len(),
             Permission::ALL.len()
         );
+    }
+
+    #[test]
+    fn roles_only_manage_roles_below_themselves() {
+        assert!(Role::Owner.can_manage(Role::Owner));
+        assert!(Role::Owner.can_manage(Role::Admin));
+        assert!(Role::Owner.can_manage(Role::Production));
+        assert!(Role::Owner.can_manage(Role::Viewer));
+
+        assert!(!Role::Admin.can_manage(Role::Owner));
+        assert!(!Role::Admin.can_manage(Role::Admin));
+        assert!(Role::Admin.can_manage(Role::Production));
+        assert!(Role::Admin.can_manage(Role::Viewer));
+
+        assert!(!Role::Production.can_manage(Role::Production));
+        assert!(Role::Production.can_manage(Role::Viewer));
+
+        assert!(!Role::Viewer.can_manage(Role::Viewer));
     }
 
     #[test]

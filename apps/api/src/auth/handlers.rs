@@ -7,7 +7,7 @@ use super::{
     contact::Contact,
     extract::{AuthContext, TenantSelection},
     jwt::TokenScope,
-    otp,
+    otp, secret,
 };
 use crate::{error::ApiError, AppState};
 
@@ -42,6 +42,9 @@ pub struct AuthResponse {
     pub token_type: &'static str,
     pub expires_in: i64,
     pub requires_tenant_selection: bool,
+    /// True when this contact has a pending invitation and can accept it with
+    /// the returned token before choosing a tenant.
+    pub pending_invitation: bool,
     pub tenants: Vec<TenantSummary>,
 }
 
@@ -75,7 +78,7 @@ pub async fn request_otp(
     let db = state.db()?;
 
     let code = otp::generate_code();
-    let code_hash = otp::hash_code(&state.jwt.secret, &code);
+    let code_hash = secret::hash(&state.jwt.secret, &code);
     let expires_at = Utc::now() + Duration::seconds(state.otp_ttl_seconds);
 
     sqlx::query("insert into otp_codes (contact, code_hash, expires_at) values ($1, $2, $3)")
@@ -125,7 +128,7 @@ pub async fn verify_otp(
         return Err(ApiError::TooManyRequests("too_many_attempts"));
     }
 
-    if otp::hash_code(&state.jwt.secret, &body.code) != code_hash {
+    if secret::hash(&state.jwt.secret, &body.code) != code_hash {
         sqlx::query("update otp_codes set attempts = attempts + 1 where id = $1")
             .bind(otp_id)
             .execute(&mut *tx)
@@ -188,7 +191,12 @@ pub async fn verify_otp(
     .fetch_all(&mut *tx)
     .await?;
 
-    if memberships.is_empty() {
+    let (has_invitation,): (bool,) = sqlx::query_as("select auth_has_pending_invitation($1)")
+        .bind(contact.as_str())
+        .fetch_one(&mut *tx)
+        .await?;
+
+    if memberships.is_empty() && !has_invitation {
         let tenant_id = Uuid::new_v4();
         let tenant_name = body
             .tenant_name
@@ -245,6 +253,7 @@ pub async fn verify_otp(
         token_type: "bearer",
         expires_in,
         requires_tenant_selection,
+        pending_invitation: has_invitation,
         tenants,
     }))
 }
@@ -310,6 +319,7 @@ pub async fn select_tenant(
         token_type: "bearer",
         expires_in: state.jwt_ttl_seconds,
         requires_tenant_selection: false,
+        pending_invitation: false,
         tenants: vec![TenantSummary {
             id: body.tenant_id,
             name,
