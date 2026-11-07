@@ -22,6 +22,23 @@ This document turns `Rencana Produk PPIC + POS Ringan untuk UMKM F&B.md` into an
 | 3 | Purchasing, sales, subscription | First paying customer | not started |
 | 4 | Expansion | Stable monthly retention | not started |
 
+## Platform targets
+
+Tauri 2 ships one UI (Next.js) and one Rust shell to desktop, Android, and iOS, but "one codebase" does not mean "no platform work". Shared: the React UI, `takar-core`, the API contract, and sync logic. Different: build toolchain, native permissions, app lifecycle, store review, and billing rules.
+
+| Target | Delivery | Toolchain | Notes |
+| --- | --- | --- | --- |
+| Web browser | Next static export on a host | Bun + Next | No Tauri APIs; server behavior comes from Axum |
+| Android | Tauri APK/AAB | JDK 17 + SDK/NDK, provisioned by the dev shell | First mobile target; test on low-end devices |
+| Desktop | Tauri bundle | webkitgtk on Linux | Useful for development and back-office |
+| iOS | Tauri app | macOS + Xcode + Apple developer account | After Android is stable; needs a Mac or macOS CI |
+
+Rules:
+
+- Core flows must not depend on a platform-only plugin. Native features sit behind a capability check with a web fallback.
+- Billing is sold on the web; do not add in-app purchase before the store rules are decided (D11).
+- The server stays the source of truth. The client may run `takar-core` for previews only.
+
 ---
 
 ## Phase 0 — Foundation + validation
@@ -38,8 +55,11 @@ Goal: the repo builds, multi-tenant auth works, and the Android app installs on 
 | P0-06 | OTP + JWT auth: provider abstraction (dev stub), OTP request/verify, JWT carrying `user_id` + `tenant_id`, tenant selection endpoint | End-to-end login in dev; tokens without `tenant_id` are rejected; multi-tenant users can switch tenants |
 | P0-07 | Bootstrap web + shell: Next static export, login page, generated TS client, Tauri Android init | `bun run --filter web build` produces `out/`; the debug APK installs and runs on 2 low-end Android phones |
 | P0-08 | Validation interviews with 10–15 F&B producers **(owner: user)** | 3–5 agree to try the product and pay |
+| P0-09 | RBAC matrix in `takar-domain`: `Role`, `Permission`, `can()` | Matrix covers owner/admin/production/viewer; pure, no IO, covered by golden tests |
+| P0-10 | `AuthContext` extractor and `/me`: JWT → active membership → role | Suspended membership gets 403; a role change applies on the next request without re-login; `/me` returns the effective permissions |
+| P0-11 | Permission-gated routes + invitation flow | Every mutating route declares a permission; removing or demoting the last owner fails inside the transaction; 403 paths have integration tests |
 
-**Phase 0 gate:** P0-01 through P0-07 are done and P0-08 yields 3–5 prospects. Without this gate, phase 1 can still be built, but do not claim product validation.
+**Phase 0 gate:** P0-01 through P0-11 are done and P0-08 yields 3–5 prospects. Without this gate, phase 1 can still be built, but do not claim product validation.
 
 ---
 
@@ -102,7 +122,7 @@ Goal: an HPP that users trust and use to set selling prices. This is the densest
 | ID | Task | Notes |
 | --- | --- | --- |
 | P4-01 | Multi-warehouse | Requires the `warehouse_id` migration; see D6 |
-| P4-02 | Role enforcement matrix (owner/admin/production/viewer) per endpoint | Not just hiding buttons in the UI |
+| P4-02 | RBAC extension: custom roles or per-tenant overrides, only if customers ask | Base roles ship in P0-09 through P0-11 |
 | P4-03 | POS add-on: multi-payment, QRIS | Only after the phase 3 gate passes |
 | P4-04 | Advanced reports + priority support (Business) | |
 | P4-05 | iOS build | Requires a Mac and a developer account |
@@ -118,6 +138,28 @@ Goal: an HPP that users trust and use to set selling prices. This is the densest
 | Testing | Core golden tests, RLS integration tests against real Postgres, e2e stock → production → HPP | Core tests from P1-04; e2e in phase 2 |
 | Performance | Test on low-end phones and 3G at the end of every phase | Phases 0, 1, and 2 |
 | Data | F&B seed templates, safe migrations, import/export | Phases 1 and 3 |
+
+---
+
+## Authorization model (RBAC)
+
+Decision: enforce in the API, define the matrix in `takar-domain`, and keep RLS for tenant isolation only. RBAC does not belong in `takar-core`: it needs database state and core must stay pure.
+
+| Layer | Responsibility |
+| --- | --- |
+| Postgres RLS | Row isolation by `app.tenant_id`; never role logic |
+| `takar-domain` | `Role`, `Permission`, and the `can()` matrix; pure and unit-tested |
+| `takar-api` | JWT → active membership → `AuthContext`; a permission extractor guards routes |
+| Service/handler | Resource invariants: last owner, invitation limits, plan caps |
+| Web/Tauri UI | Renders from the permissions returned by `/me`; never the source of truth |
+
+Rules:
+
+- The JWT carries `user_id` + `tenant_id` only. Resolve the role per request from `memberships` so suspension and role changes apply immediately.
+- `/me` returns the active tenant, role, and effective permissions. The UI does not duplicate the matrix.
+- Every mutating route declares a permission. No ad-hoc role checks inside handlers.
+- Plan limits are entitlements, not permissions: check them in the service layer before creating a member, material, recipe, or warehouse.
+- Role checks never live in RLS policies; RLS only answers "which tenant owns this row".
 
 ---
 
@@ -152,6 +194,8 @@ Do not decide these alone. Ask the user, then record the outcome here.
 | D7 | HPP rounding: how many decimals are stored and displayed? | Store 4 decimals, display whole Rupiah, round up when setting a selling price |
 | D8 | Do finished goods need batches and expiry tracking? | Yes for cakes and frozen food, but defer to the end of phase 2 |
 | D9 | Crate and package naming: `takar-` prefix? | Confirm once at P0-01 so nothing gets renamed mid-flight |
+| D10 | RBAC: put the role in the JWT or resolve it per request? | Resolve per request from `memberships`; JWT stays `user_id` + `tenant_id` so revocation is immediate |
+| D11 | Mobile monetization: web checkout or in-app purchase? | Web checkout; keep billing read-only inside the app until store rules are settled |
 
 ---
 
