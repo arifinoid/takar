@@ -85,7 +85,9 @@ export class ApiClient {
 
   constructor({ baseUrl, fetchImpl = fetch }: ApiClientOptions) {
     this.baseUrl = baseUrl.replace(/\/$/, "");
-    this.fetchImpl = fetchImpl;
+    // Native fetch throws "Illegal invocation" when called as a method of
+    // another object, so keep it bound to the global scope.
+    this.fetchImpl = fetchImpl.bind(globalThis);
   }
 
   private async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
