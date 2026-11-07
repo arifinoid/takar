@@ -1,6 +1,10 @@
 //! HTTP layer for Takar. This is the only place that owns server behavior.
 
+pub mod auth;
 pub mod config;
+pub mod error;
+
+use std::sync::Arc;
 
 use axum::{extract::State, http::HeaderValue, routing::get, Json, Router};
 use sqlx::PgPool;
@@ -11,10 +15,23 @@ use tower_http::{
 };
 use utoipa::OpenApi;
 
+use auth::otp::OtpSender;
+use error::ApiError;
+
 #[derive(Clone)]
 pub struct AppState {
     /// Present only when `DATABASE_URL` is set and reachable at boot.
     pub db: Option<PgPool>,
+    pub jwt: auth::JwtConfig,
+    pub otp: Arc<dyn OtpSender>,
+    pub otp_ttl_seconds: i64,
+    pub jwt_ttl_seconds: i64,
+}
+
+impl AppState {
+    pub fn db(&self) -> Result<&PgPool, ApiError> {
+        self.db.as_ref().ok_or(ApiError::ServiceUnavailable)
+    }
 }
 
 #[derive(OpenApi)]
@@ -25,6 +42,7 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/healthz", get(health))
         .route("/api-docs/openapi.json", get(openapi))
+        .merge(auth::routes())
         .with_state(state)
         .layer(cors())
         .layer(TraceLayer::new_for_http())
