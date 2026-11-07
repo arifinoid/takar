@@ -138,6 +138,10 @@ h1 {
     flex-direction: column;
   }
 
+  .header__aside {
+    align-items: flex-start;
+  }
+
   h1 {
     font-size: 34px;
   }
@@ -145,4 +149,42 @@ h1 {
   .footer {
     flex-direction: column;
   }
+}
+
+.header__aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.locale-switch {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  padding: 2px;
+}
+
+.locale-switch__option {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 4px 10px;
+}
+
+.locale-switch__option--active {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.locale-switch__option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
