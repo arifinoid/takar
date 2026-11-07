@@ -1,50 +1,46 @@
-import { HealthBadge } from "./health-badge";
+"use client";
 
-const foundations = [
-  {
-    title: "Web UI",
-    detail: "Next.js static export, shared by the browser and the Tauri WebView.",
-  },
-  {
-    title: "Native shell",
-    detail: "Tauri 2 desktop build. Android follows once the SDK is available.",
-  },
-  {
-    title: "API",
-    detail: "Axum service with a health check and a generated OpenAPI document.",
-  },
-  {
-    title: "Core",
-    detail: "Pure Rust crate for FEFO, HPP, and unit conversion.",
-  },
-];
+import { useI18n } from "@/lib/i18n";
+
+import { HealthBadge } from "./health-badge";
+import { LocaleSwitch } from "./locale-switch";
 
 export default function HomePage() {
+  const { t } = useI18n();
+
+  const cards = [
+    t.home.cards.web,
+    t.home.cards.shell,
+    t.home.cards.api,
+    t.home.cards.core,
+  ];
+
   return (
     <main className="page">
       <header className="header">
         <div>
-          <p className="eyebrow">PPIC + light POS</p>
-          <h1>Takar</h1>
-          <p className="lede">
-            Stock, expiry, and real production cost for small F&amp;B producers.
-          </p>
+          <p className="eyebrow">{t.home.eyebrow}</p>
+          <h1>{t.common.appName}</h1>
+          <p className="lede">{t.home.lede}</p>
         </div>
-        <HealthBadge />
+        <div className="header__aside">
+          <HealthBadge />
+          <LocaleSwitch />
+        </div>
       </header>
 
       <section className="grid">
-        {foundations.map((item) => (
-          <article className="card" key={item.title}>
-            <h2>{item.title}</h2>
-            <p>{item.detail}</p>
+        {cards.map((card) => (
+          <article className="card" key={card.title}>
+            <h2>{card.title}</h2>
+            <p>{card.detail}</p>
           </article>
         ))}
       </section>
 
       <footer className="footer">
-        <span>Phase 0 scaffold</span>
-        <span>OpenAPI at /api-docs/openapi.json</span>
+        <span>{t.home.footer.phase}</span>
+        <span>{t.home.footer.api}</span>
       </footer>
     </main>
   );
