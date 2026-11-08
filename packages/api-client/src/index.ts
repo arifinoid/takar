@@ -12,6 +12,99 @@ export type TenantSummary = {
   role: Role;
 };
 
+export type UnitRef = {
+  id: string;
+  code: string;
+};
+
+export type Unit = UnitRef & {
+  name: string;
+};
+
+export type Supplier = {
+  id: string;
+  name: string;
+  phone: string | null;
+  lead_time_days: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Material = {
+  id: string;
+  name: string;
+  base_unit: UnitRef;
+  min_stock: string;
+  shelf_life_days: number | null;
+  default_supplier_id: string | null;
+  last_cost: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StockLevel = {
+  material_id: string;
+  name: string;
+  base_unit: UnitRef;
+  on_hand: string;
+  min_stock: string;
+  below_min: boolean;
+  active_batches: number;
+  nearest_expiry: string | null;
+  last_cost: string;
+};
+
+export type Batch = {
+  id: string;
+  material_id: string;
+  supplier_id: string | null;
+  received_at: string;
+  expires_at: string | null;
+  qty_received: string;
+  qty_remaining: string;
+  unit_cost: string;
+  note: string | null;
+  created_at: string;
+};
+
+export type MovementType =
+  | "purchase"
+  | "production_use"
+  | "waste"
+  | "expired"
+  | "adjustment";
+
+export type Movement = {
+  id: string;
+  batch_id: string;
+  material_id: string;
+  type: MovementType;
+  qty: string;
+  unit_cost: string | null;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type StockInRequest = {
+  material_id: string;
+  supplier_id?: string | null;
+  received_at?: string;
+  expires_at?: string | null;
+  qty_received: string;
+  unit_cost: string;
+  note?: string | null;
+};
+
+export type CreateMaterialRequest = {
+  name: string;
+  base_unit_id: string;
+  min_stock?: string;
+  shelf_life_days?: number | null;
+  default_supplier_id?: string | null;
+};
+
 export type AuthResponse = {
   access_token: string;
   token_type: string;
@@ -158,5 +251,58 @@ export class ApiClient {
 
   me(token: string): Promise<MeResponse> {
     return this.request<MeResponse>("/me", { token });
+  }
+
+  listUnits(token: string): Promise<Unit[]> {
+    return this.request<Unit[]>("/units", { token });
+  }
+
+  listSuppliers(token: string): Promise<Supplier[]> {
+    return this.request<Supplier[]>("/suppliers", { token });
+  }
+
+  listMaterials(token: string): Promise<Material[]> {
+    return this.request<Material[]>("/materials", { token });
+  }
+
+  createMaterial(token: string, body: CreateMaterialRequest): Promise<Material> {
+    return this.request<Material>("/materials", {
+      method: "POST",
+      token,
+      body,
+    });
+  }
+
+  listStock(token: string): Promise<StockLevel[]> {
+    return this.request<StockLevel[]>("/stock", { token });
+  }
+
+  listBatches(token: string, materialId?: string): Promise<Batch[]> {
+    const query = materialId ? `?material_id=${encodeURIComponent(materialId)}` : "";
+
+    return this.request<Batch[]>(`/stock/batches${query}`, { token });
+  }
+
+  listMovements(
+    token: string,
+    filter: { materialId?: string; batchId?: string; limit?: number } = {},
+  ): Promise<Movement[]> {
+    const query = new URLSearchParams();
+
+    if (filter.materialId) query.set("material_id", filter.materialId);
+    if (filter.batchId) query.set("batch_id", filter.batchId);
+    if (filter.limit) query.set("limit", String(filter.limit));
+
+    const suffix = query.size > 0 ? `?${query.toString()}` : "";
+
+    return this.request<Movement[]>(`/stock/movements${suffix}`, { token });
+  }
+
+  stockIn(token: string, body: StockInRequest): Promise<Batch> {
+    return this.request<Batch>("/stock/batches", {
+      method: "POST",
+      token,
+      body,
+    });
   }
 }

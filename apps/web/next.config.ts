@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   trailingSlash: true,
+  // The dev overlay covers the sidebar footer and the mobile tab bar.
+  devIndicators: false,
   transpilePackages: ["@takar/api-client"],
 };
 
