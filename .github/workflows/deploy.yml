@@ -52,7 +52,9 @@ jobs:
       # origin and the hardcoded CORS allow-list is never involved.
       - name: Build web
         env:
-          NEXT_PUBLIC_API_URL: https://takar.arifinoid.web.id
+          # Namespaced so the API never shadows a static page (/dashboard,
+          # /stock). nginx strips /api before proxying to 127.0.0.1:3001.
+          NEXT_PUBLIC_API_URL: https://takar.arifinoid.web.id/api
         run: bun run --filter web build
 
       - name: Setup Rust

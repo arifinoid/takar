@@ -17,7 +17,7 @@ nginx, ACME, direktori release) ada di repo
 ```
 GitHub Actions (deploy.yml, setelah CI hijau)
   ├─ cargo build --release -p takar-api       (ubuntu-24.04, glibc 2.39)
-  ├─ NEXT_PUBLIC_API_URL=https://takar.arifinoid.web.id bun run build
+  ├─ NEXT_PUBLIC_API_URL=https://takar.arifinoid.web.id/api bun run build
   ├─ stage: bin/takar-api + out/ + migrations/ + deploy/vps/grant.sql
   ├─ rsync → /srv/takar/releases/<sha>/
   ├─ symlink /srv/takar/current → release baru (atomik)
@@ -26,14 +26,14 @@ GitHub Actions (deploy.yml, setelah CI hijau)
   └─ health check /healthz → gagal? rollback ke release sebelumnya
 
 Host:
-  nginx :443 ── /              → /srv/takar/current/out
-             └─ /auth/ /stock /units /suppliers /materials /members
-                /me /healthz /api-docs/
-                                 → 127.0.0.1:3001 (takar-api.service)
+  nginx :443 ── /        → /srv/takar/current/out
+             ├─ /api/*   → 127.0.0.1:3001 (prefix /api di-strip)
+             └─ /healthz → 127.0.0.1:3001 (deploy + monitoring)
 ```
 
-Same-origin: browser memanggil `https://takar.arifinoid.web.id`, jadi CORS
-hardcoded di API (localhost + Tauri) tidak pernah terlibat.
+API sengaja di bawah `/api` supaya tidak menabrak halaman statis yang namanya
+sama (`/dashboard`, `/stock`). Browser tetap same-origin, jadi tidak butuh
+CORS di production.
 
 ---
 
