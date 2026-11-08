@@ -100,6 +100,8 @@ Goal: replace the notebook for material stock and expiry dates.
 | P1-09 | Phase 1 dashboard: critical stock + expiring materials | Single screen; loads in under 2 seconds on a slow network |
 | P1-10 | Onboarding: F&B material/recipe templates + Excel import (see D1) | A new tenant can reach 20 materials within 10 minutes |
 
+**Alert job.** Run `cargo run -p takar-api --bin alert_job` daily from cron. It is idempotent and safe to run in parallel: tenants are claimed with `skip locked`, inserts are guarded by open-alert unique indexes, and alerts resolve when their condition stops holding. The job needs a database role that can list every tenant (the migration role, or any role with `bypassrls`); the per-tenant work still runs inside a tenant-scoped transaction. Alerts store structured data, not prose — the WhatsApp text is composed in P1-07.
+
 **Phase 1 gate:** at least 3 businesses use the product instead of a notebook for 2 weeks.
 
 ---
@@ -204,7 +206,7 @@ The draft SQL in the product document is not ready to use as-is. Settle these in
 5. **`stock_movements.qty`** has no sign convention or constraint. **Decided:** inbound is positive and outbound is negative, enforced by the `stock_movements_sign` check added in `0005_batches.sql`; only `adjustment` may go either way.
 6. **`materials.last_cost`** is derived data that can drift. **Decided:** it is a read-only cache, written only by stock-in from the latest purchase; batches stay authoritative.
 7. **`tenants.plan` is free text** — make it an enum or check constraint so plan limits can be trusted.
-8. **Indexes for the daily job** — add an index on `material_batches(tenant_id, expires_at)` for active batches, plus a fast way to detect materials below `min_stock`.
+8. **Indexes for the daily job** — add an index on `material_batches(tenant_id, expires_at)` for active batches, plus a fast way to detect materials below `min_stock`. **Decided:** the partial FEFO index in `0005_batches.sql` serves the expiry scan; `0006_alerts.sql` adds open-alert unique indexes and a partial index for the open-alert list. Low stock is a per-material aggregate, which is fine at SME scale.
 9. **`production_consumptions` has no primary key** — add an `id` or a composite PK on `(production_order_id, batch_id)`.
 
 ---

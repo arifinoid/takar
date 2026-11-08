@@ -223,6 +223,8 @@ pub async fn verify_otp(
             .execute(&mut *tx)
             .await?;
 
+        takar_db::alerts::seed_default_rules(&mut tx, tenant_id).await?;
+
         sqlx::query("insert into memberships (tenant_id, user_id, role) values ($1, $2, 'owner')")
             .bind(tenant_id)
             .bind(user_id)
