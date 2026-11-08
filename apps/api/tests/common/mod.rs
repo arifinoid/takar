@@ -152,6 +152,42 @@ pub async fn login(app: &Router, otp: &CaptureOtp, contact: &str) -> Value {
     body
 }
 
+pub async fn unit_id(app: &Router, token: &str, code: &str) -> Uuid {
+    let (_, units) = call(app, "GET", "/units", None, Some(token)).await;
+
+    units
+        .as_array()
+        .expect("units")
+        .iter()
+        .find(|unit| unit["code"] == code)
+        .expect("unit")["id"]
+        .as_str()
+        .expect("id")
+        .parse()
+        .expect("uuid")
+}
+
+pub async fn create_material(app: &Router, token: &str, name: &str) -> Uuid {
+    let kg = unit_id(app, token, "kg").await;
+
+    let (status, material) = call(
+        app,
+        "POST",
+        "/materials",
+        Some(json!({ "name": name, "base_unit_id": kg })),
+        Some(token),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::CREATED, "{material}");
+
+    material["id"].as_str().expect("id").parse().expect("uuid")
+}
+
+pub async fn stock_in(app: &Router, token: &str, body: Value) -> (StatusCode, Value) {
+    call(app, "POST", "/stock/batches", Some(body), Some(token)).await
+}
+
 pub async fn tenant_of(app: &Router, token: &str) -> Uuid {
     let (status, me) = call(app, "GET", "/me", None, Some(token)).await;
     assert_eq!(status, StatusCode::OK);

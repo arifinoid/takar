@@ -1,47 +1,11 @@
 mod common;
 
 use axum::http::StatusCode;
-use common::{call, login, signup, tenant_of, test_app, CaptureOtp};
+use common::{call, create_material, login, signup, stock_in, tenant_of, test_app, CaptureOtp};
 use rust_decimal::Decimal;
-use serde_json::{json, Value};
+use serde_json::json;
 use sqlx::PgPool;
 use uuid::Uuid;
-
-async fn unit_id(app: &axum::Router, token: &str, code: &str) -> Uuid {
-    let (_, units) = call(app, "GET", "/units", None, Some(token)).await;
-
-    units
-        .as_array()
-        .expect("units")
-        .iter()
-        .find(|unit| unit["code"] == code)
-        .expect("unit")["id"]
-        .as_str()
-        .expect("id")
-        .parse()
-        .expect("uuid")
-}
-
-async fn create_material(app: &axum::Router, token: &str, name: &str) -> Uuid {
-    let kg = unit_id(app, token, "kg").await;
-
-    let (status, material) = call(
-        app,
-        "POST",
-        "/materials",
-        Some(json!({ "name": name, "base_unit_id": kg })),
-        Some(token),
-    )
-    .await;
-
-    assert_eq!(status, StatusCode::CREATED, "{material}");
-
-    material["id"].as_str().expect("id").parse().expect("uuid")
-}
-
-async fn stock_in(app: &axum::Router, token: &str, body: Value) -> (StatusCode, Value) {
-    call(app, "POST", "/stock/batches", Some(body), Some(token)).await
-}
 
 #[sqlx::test(migrations = "../../migrations")]
 async fn stock_in_creates_a_batch_and_a_purchase_movement(pool: PgPool) {
