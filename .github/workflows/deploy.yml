@@ -1,0 +1,130 @@
+name: Deploy
+
+# Deploy only runs after the CI workflow on main succeeded, so a red build
+# never reaches the VPS. Manual runs are for re-deploying the current main or
+# for the first deploy of a branch (workflow_dispatch).
+on:
+  workflow_run:
+    workflows: ["ci"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-takar
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
+    # Not ubuntu-latest: the binary is dynamically linked against the runner's
+    # glibc, and NixOS 25.05 ships 2.40. Build on 24.04 (glibc 2.39) so the
+    # artifact keeps running when ubuntu-latest moves to Ubuntu 26.
+    runs-on: ubuntu-24.04
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # On workflow_run, github.sha is the default branch head, not the
+          # commit CI verified; deploy exactly what was tested.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.4"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # The UI is a static Next export; nginx serves apps/web/out directly.
+      # NEXT_PUBLIC_API_URL is compiled in, so the browser calls the same
+      # origin and the hardcoded CORS allow-list is never involved.
+      - name: Build web
+        env:
+          NEXT_PUBLIC_API_URL: https://takar.arifinoid.web.id
+        run: bun run --filter web build
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # No sqlx compile-time macros are used, so this does not need a database.
+      - name: Build API
+        run: cargo build --release -p takar-api
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      # Every commit lands in its own release directory:
+      #   bin/takar-api, out/, migrations/, deploy/vps/grant.sql
+      - name: Stage release
+        run: |
+          rm -rf release
+          mkdir -p release/bin release/deploy/vps
+          cp target/release/takar-api release/bin/
+          cp -r apps/web/out release/out
+          cp -r migrations release/migrations
+          cp deploy/vps/grant.sql release/deploy/vps/
+
+      - name: Upload release
+        run: |
+          rsync -az --delete release/ \
+            "root@$VPS_HOST:/srv/takar/releases/${{ github.sha }}/"
+
+      # The symlink flip is atomic. Migrations and grants run through a
+      # systemd oneshot (takar-migrate) so they use the same env file as the
+      # API. If anything fails from here on, the previous release is restored
+      # and the job exits red.
+      - name: Activate release
+        run: |
+          ssh "root@$VPS_HOST" "SHA=${{ github.sha }}" bash -s <<'REMOTE'
+          set -Eeuo pipefail
+
+          release="/srv/takar/releases/$SHA"
+          prev="$(readlink -f /srv/takar/current || true)"
+
+          rollback() {
+            if [ -n "$prev" ] && [ "$prev" != "$release" ]; then
+              echo "rolling back to $prev"
+              ln -sfn "$prev" /srv/takar/current.new
+              mv -Tf /srv/takar/current.new /srv/takar/current
+              systemctl restart takar-api || true
+            fi
+          }
+          trap rollback ERR
+
+          ln -sfn "$release" /srv/takar/current.new
+          mv -Tf /srv/takar/current.new /srv/takar/current
+
+          systemctl start takar-migrate
+          systemctl restart takar-api
+
+          curl -fsS --retry 15 --retry-delay 2 --retry-connrefused \
+            http://127.0.0.1:3001/healthz >/dev/null
+
+          trap - ERR
+
+          # Keep the three newest releases; current is always the newest.
+          ls -1dt /srv/takar/releases/*/ | tail -n +4 | xargs -r rm -rf
+          REMOTE
+
+      - name: Verify public endpoint
+        run: |
+          curl -fsS --retry 20 --retry-delay 5 \
+            https://takar.arifinoid.web.id/healthz >/dev/null
