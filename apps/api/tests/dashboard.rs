@@ -49,7 +49,12 @@ fn names(rows: &Value) -> Vec<&str> {
     rows.as_array()
         .expect("rows")
         .iter()
-        .map(|row| row["name"].as_str().or_else(|| row["material_name"].as_str()).expect("name"))
+        .map(|row| {
+            row["name"]
+                .as_str()
+                .or_else(|| row["material_name"].as_str())
+                .expect("name")
+        })
         .collect()
 }
 
@@ -87,7 +92,10 @@ async fn overview_ranks_shortages_and_sums_stock_value(pool: PgPool) {
         .map(|row| row["material_id"].as_str().expect("id").to_string())
         .collect();
     assert_eq!(ids, vec![chili.to_string(), salt.to_string()]);
-    assert!(!ids.contains(&flour.to_string()), "a stocked material is safe");
+    assert!(
+        !ids.contains(&flour.to_string()),
+        "a stocked material is safe"
+    );
     assert!(
         !ids.contains(&sugar.to_string()),
         "a material with no minimum is never critical"
@@ -217,4 +225,3 @@ async fn overview_requires_a_session(pool: PgPool) {
     let (status, _) = call(&app, "GET", "/dashboard", None, None).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
-
