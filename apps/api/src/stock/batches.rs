@@ -24,7 +24,7 @@ pub struct StockInBody {
     pub note: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct BatchView {
     pub id: Uuid,
     pub material_id: Uuid,
