@@ -53,6 +53,14 @@ docker compose down                    # stop, keeps the volume
 DATABASE_URL=postgres://takar:takar@127.0.0.1:5432/takar cargo test -p takar-db
 ```
 
+Daily jobs (run from cron in deployment):
+
+```bash
+cargo run -p takar-api --bin alert_job     # fills and resolves alerts; safe to re-run
+```
+
+The job claims tenants with `skip locked`, so it needs a database role that can see every tenant — the migration role or a role with `bypassrls`. Per-tenant work still runs in a tenant-scoped transaction.
+
 `#[sqlx::test]` creates a throwaway database per test, so the URL must point at a server where the user can create databases. The compose user is the cluster superuser, which satisfies that requirement for development only.
 
 Web and shell (after `apps/web` and `apps/shell` exist):

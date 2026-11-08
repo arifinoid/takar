@@ -1,5 +1,7 @@
 //! Postgres access layer for Takar.
 
+pub mod alerts;
+
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
