@@ -18,7 +18,7 @@ import type { ComponentType } from "react";
 
 import { useI18n } from "@/lib/i18n";
 
-import { LocaleSwitch } from "../locale-switch";
+import { LocaleSwitch } from "./locale-switch";
 
 type Active = "overview" | "stock";
 

@@ -2,6 +2,7 @@
 
 pub mod auth;
 pub mod config;
+pub mod dashboard;
 pub mod error;
 pub mod master;
 pub mod stock;
@@ -46,6 +47,7 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/healthz", get(health))
         .route("/api-docs/openapi.json", get(openapi))
+        .route("/dashboard", get(dashboard::overview))
         .merge(auth::routes())
         .merge(master::routes())
         .merge(stock::routes())

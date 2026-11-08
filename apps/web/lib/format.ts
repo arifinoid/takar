@@ -33,6 +33,15 @@ export function formatDate(value: string, locale: Locale): string {
   }).format(parseDate(value));
 }
 
+export function formatLongDate(value: Date, locale: Locale): string {
+  return new Intl.DateTimeFormat(localeTag(locale), {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(value);
+}
+
 export function formatDateTime(value: string, locale: Locale): string {
   return new Intl.DateTimeFormat(localeTag(locale), {
     day: "2-digit",
