@@ -27,7 +27,8 @@ GitHub Actions (deploy.yml, setelah CI hijau)
 
 Host:
   nginx :443 ── /              → /srv/takar/current/out
-             └─ /auth/ /stock /master /members /me /healthz /api-docs/
+             └─ /auth/ /stock /units /suppliers /materials /members
+                /me /healthz /api-docs/
                                  → 127.0.0.1:3001 (takar-api.service)
 ```
 
