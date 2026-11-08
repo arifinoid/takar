@@ -8,7 +8,7 @@ import type {
   Unit,
 } from "@takar/api-client";
 import { Ellipsis, Plus, Search } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { api } from "@/lib/api";
 import { daysUntil, formatDate, formatMoney, formatQty } from "@/lib/format";
@@ -16,7 +16,7 @@ import { fill, useI18n } from "@/lib/i18n";
 import { readToken } from "@/lib/session";
 import { useMe } from "@/lib/use-me";
 
-import { AppShell } from "./app-shell";
+import { AppShell } from "../app-shell";
 import { BatchPanel } from "./batch-panel";
 import { MaterialDialog } from "./material-dialog";
 import { StockInDialog } from "./stock-in-dialog";
@@ -89,6 +89,22 @@ export default function StockPage() {
   }, [notice]);
 
   const data = load.status === "ready" ? load.data : null;
+
+  // The dashboard links straight to one material; open its drawer once, then
+  // leave the page alone so closing it sticks.
+  const deepLinkApplied = useRef(false);
+
+  useEffect(() => {
+    if (!data || deepLinkApplied.current) return;
+
+    deepLinkApplied.current = true;
+
+    const id = new URLSearchParams(window.location.search).get("material");
+
+    if (id && data.stock.some((row) => row.material_id === id)) {
+      setPanelId(id);
+    }
+  }, [data]);
 
   const supplierById = useMemo(
     () => new Map((data?.suppliers ?? []).map((item) => [item.id, item])),

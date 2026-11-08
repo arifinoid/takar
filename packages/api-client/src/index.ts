@@ -105,6 +105,45 @@ export type CreateMaterialRequest = {
   default_supplier_id?: string | null;
 };
 
+export type DashboardSummary = {
+  materials: number;
+  below_min: number;
+  out_of_stock: number;
+  expiring: number;
+  expired: number;
+  active_batches: number;
+  stock_value: string;
+  horizon_days: number;
+};
+
+export type DashboardCriticalRow = {
+  material_id: string;
+  name: string;
+  base_unit: UnitRef;
+  on_hand: string;
+  min_stock: string;
+  shortfall: string;
+  active_batches: number;
+  nearest_expiry: string | null;
+};
+
+export type DashboardExpiringRow = {
+  batch_id: string;
+  material_id: string;
+  material_name: string;
+  base_unit: UnitRef;
+  qty_remaining: string;
+  unit_cost: string;
+  expires_at: string;
+  days_left: number;
+};
+
+export type Dashboard = {
+  summary: DashboardSummary;
+  critical: DashboardCriticalRow[];
+  expiring: DashboardExpiringRow[];
+};
+
 export type AuthResponse = {
   access_token: string;
   token_type: string;
@@ -271,6 +310,10 @@ export class ApiClient {
       token,
       body,
     });
+  }
+
+  getDashboard(token: string): Promise<Dashboard> {
+    return this.request<Dashboard>("/dashboard", { token });
   }
 
   listStock(token: string): Promise<StockLevel[]> {
