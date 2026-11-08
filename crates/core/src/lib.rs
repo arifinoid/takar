@@ -7,3 +7,7 @@
 //! - no IO, no async, no database access;
 //! - deterministic input to output;
 //! - `rust_decimal` for money and quantities, never `f64`.
+
+pub mod fefo;
+
+pub use fefo::{allocate, Allocation, AllocationLine, FefoError, StockBatch};
