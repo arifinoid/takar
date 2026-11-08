@@ -1,7 +1,7 @@
 mod common;
 
 use axum::http::StatusCode;
-use common::{call, login, signup, state, test_app, user_of, CaptureOtp};
+use common::{call, login, signup, state, tenant_of, test_app, user_of, CaptureOtp};
 use serde_json::json;
 use sqlx::PgPool;
 use takar_api::router;
@@ -201,4 +201,31 @@ async fn selecting_a_foreign_tenant_is_forbidden(pool: PgPool) {
     .await;
 
     assert_eq!(status, StatusCode::FORBIDDEN);
+}
+
+/// The number people actually type is the local one. It must land on the
+/// account created with the international form, not create a second one.
+#[sqlx::test(migrations = "../../migrations")]
+async fn local_phone_format_signs_into_the_same_account(pool: PgPool) {
+    let otp = CaptureOtp::default();
+    let app = test_app(pool, otp.clone());
+
+    let first = signup(&app, &otp, "+6281234567890").await;
+    let first_token = first["access_token"].as_str().expect("token");
+    let tenant_id = tenant_of(&app, first_token).await;
+    let user_id = user_of(&app, first_token).await;
+
+    for contact in ["081234567890", "6281234567890", "+62 812-3456-7890"] {
+        let body = login(&app, &otp, contact).await;
+
+        assert_eq!(
+            body["requires_tenant_selection"], false,
+            "{contact} resolved to more than one account"
+        );
+        assert_eq!(body["tenants"].as_array().expect("tenants").len(), 1);
+
+        let token = body["access_token"].as_str().expect("token");
+        assert_eq!(user_of(&app, token).await, user_id, "{contact}");
+        assert_eq!(tenant_of(&app, token).await, tenant_id, "{contact}");
+    }
 }
