@@ -4378,6 +4378,7 @@ name = "takar-db"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "rust_decimal",
  "sqlx",
  "tokio",
  "uuid",

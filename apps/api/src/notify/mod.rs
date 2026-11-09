@@ -7,6 +7,7 @@
 pub mod brevo;
 pub mod fonnte;
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -14,6 +15,8 @@ use reqwest::Client;
 
 pub use brevo::BrevoTransport;
 pub use fonnte::FonnteTransport;
+
+use crate::config::Config;
 
 /// A provider that hangs must not hang the request that triggered it.
 const TIMEOUT: Duration = Duration::from_secs(5);
@@ -81,6 +84,112 @@ impl Transport for LogTransport {
         );
         Ok(())
     }
+}
+
+/// Where a message goes. Each transport speaks exactly one of these.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Channel {
+    Email,
+    WhatsApp,
+}
+
+impl Channel {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Channel::Email => "email",
+            Channel::WhatsApp => "whatsapp",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "email" => Some(Channel::Email),
+            "whatsapp" => Some(Channel::WhatsApp),
+            _ => None,
+        }
+    }
+}
+
+/// Picks the transport for a channel, with a development fallback.
+///
+/// Both OTP and alerts go through this, so a provider swap is a config change
+/// for every message the product sends.
+pub struct Router {
+    email: Option<Arc<dyn Transport>>,
+    phone: Option<Arc<dyn Transport>>,
+    fallback: Option<Arc<dyn Transport>>,
+}
+
+impl Router {
+    pub fn new(
+        email: Option<Arc<dyn Transport>>,
+        phone: Option<Arc<dyn Transport>>,
+        fallback: Option<Arc<dyn Transport>>,
+    ) -> Self {
+        Self {
+            email,
+            phone,
+            fallback,
+        }
+    }
+
+    pub fn transport(&self, channel: Channel) -> Option<&Arc<dyn Transport>> {
+        let configured = match channel {
+            Channel::Email => self.email.as_ref(),
+            Channel::WhatsApp => self.phone.as_ref(),
+        };
+
+        configured.or(self.fallback.as_ref())
+    }
+
+    pub async fn send(
+        &self,
+        channel: Channel,
+        to: &str,
+        subject: &str,
+        text: &str,
+    ) -> Result<(), TransportError> {
+        let transport = self.transport(channel).ok_or_else(|| {
+            TransportError::permanent(format!("no transport configured for {}", channel.as_str()))
+        })?;
+
+        deliver(transport.as_ref(), &Message { to, subject, text }).await
+    }
+}
+
+/// Builds the router once, at startup, and reports what is live.
+pub fn router(config: &Config) -> Router {
+    let client = client();
+
+    let email: Option<Arc<dyn Transport>> = config.otp.email.as_ref().map(|provider| {
+        Arc::new(BrevoTransport::new(
+            client.clone(),
+            provider.api_key.clone(),
+            provider.from_email.clone(),
+            provider.from_name.clone(),
+        )) as Arc<dyn Transport>
+    });
+
+    let phone: Option<Arc<dyn Transport>> = config.otp.whatsapp.as_ref().map(|provider| {
+        Arc::new(FonnteTransport::new(client.clone(), provider.token.clone())) as Arc<dyn Transport>
+    });
+
+    tracing::info!(
+        email = email.as_ref().map(|transport| transport.name()),
+        whatsapp = phone.as_ref().map(|transport| transport.name()),
+        fallback = cfg!(debug_assertions),
+        "message delivery"
+    );
+
+    if email.is_none() && phone.is_none() && !cfg!(debug_assertions) {
+        tracing::warn!("no message transport configured: nothing can be delivered");
+    }
+
+    Router::new(
+        email,
+        phone,
+        cfg!(debug_assertions).then(|| Arc::new(LogTransport) as Arc<dyn Transport>),
+    )
 }
 
 pub fn client() -> Client {
