@@ -5,6 +5,7 @@ pub mod config;
 pub mod dashboard;
 pub mod error;
 pub mod master;
+pub mod onboarding;
 pub mod stock;
 
 use std::sync::Arc;
@@ -50,6 +51,7 @@ pub fn router(state: AppState) -> Router {
         .route("/dashboard", get(dashboard::overview))
         .merge(auth::routes())
         .merge(master::routes())
+        .merge(onboarding::routes())
         .merge(stock::routes())
         .with_state(state)
         .layer(cors())

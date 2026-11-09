@@ -8,6 +8,7 @@ import type {
   Unit,
 } from "@takar/api-client";
 import { Ellipsis, Plus, Search } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { api } from "@/lib/api";
@@ -437,13 +438,18 @@ export default function StockPage() {
                     <h2>{t.stock.empty.title}</h2>
                     <p>{t.stock.empty.body}</p>
                     {canWriteMaterials && (
-                      <button
-                        className="btn btn--primary"
-                        type="button"
-                        onClick={() => setMaterialOpen(true)}
-                      >
-                        {t.stock.empty.cta}
-                      </button>
+                      <div className="stock__empty-actions">
+                        <button
+                          className="btn btn--primary"
+                          type="button"
+                          onClick={() => setMaterialOpen(true)}
+                        >
+                          {t.stock.empty.cta}
+                        </button>
+                        <Link className="btn btn--ghost" href="/onboarding">
+                          {t.stock.empty.template}
+                        </Link>
+                      </div>
                     )}
                   </div>
                 ) : visible.length === 0 ? (

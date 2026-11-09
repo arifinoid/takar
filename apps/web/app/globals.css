@@ -1355,6 +1355,14 @@ h1 {
   margin: 0;
 }
 
+.stock__empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 4px;
+}
+
 .stock__empty-line {
   color: var(--ink2);
   font-size: 12px;
@@ -1949,6 +1957,138 @@ h1 {
   .skeleton {
     animation: none;
   }
+}
+
+/* Onboarding --------------------------------------------------------- */
+
+.onboarding {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1000px;
+}
+
+.tpl-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  padding: 14px 16px 16px;
+}
+
+.tpl {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+}
+
+.tpl__name {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.tpl__desc {
+  color: var(--ink2);
+  font-size: 11px;
+  line-height: 1.45;
+  margin: 0;
+  min-height: 32px;
+}
+
+.tpl__count {
+  color: var(--ink3);
+  font-size: 10.5px;
+  margin-bottom: 8px;
+}
+
+.tpl__apply {
+  font-size: 11.5px;
+  margin-top: auto;
+  padding: 9px 12px;
+}
+
+.import {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px 16px;
+}
+
+.import__columns {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--ink2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  padding: 8px 10px;
+}
+
+.import__hint {
+  color: var(--ink3);
+  font-size: 10.5px;
+  margin: 0;
+}
+
+.import__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.import__actions .btn {
+  padding: 10px 14px;
+}
+
+.import__file {
+  display: none;
+}
+
+.result {
+  background: var(--brand-soft);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+}
+
+.result__summary {
+  align-items: center;
+  color: var(--brand);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  gap: 10px;
+}
+
+.result__summary strong {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.result__summary span {
+  color: var(--ink2);
+}
+
+.result__errors {
+  color: var(--danger);
+  display: flex;
+  flex-direction: column;
+  font-size: 10.5px;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.result__errors li span {
+  font-weight: 600;
+  margin-right: 6px;
 }
 
 /* Responsive --------------------------------------------------------- */

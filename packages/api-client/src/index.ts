@@ -144,6 +144,30 @@ export type Dashboard = {
   expiring: DashboardExpiringRow[];
 };
 
+export type OnboardingTemplateItem = {
+  name: string;
+  unit: string;
+  min_stock: string;
+  shelf_life_days: number | null;
+};
+
+export type OnboardingTemplate = {
+  id: string;
+  item_count: number;
+  items: OnboardingTemplateItem[];
+};
+
+export type OnboardingRowError = {
+  row: number;
+  code: string;
+};
+
+export type OnboardingResult = {
+  created: number;
+  skipped: number;
+  errors: OnboardingRowError[];
+};
+
 export type AuthResponse = {
   access_token: string;
   token_type: string;
@@ -207,6 +231,8 @@ export class ApiError extends Error {
 type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
+  /** Raw upload, sent as-is instead of JSON. */
+  raw?: BodyInit;
   token?: string;
   signal?: AbortSignal;
 };
@@ -229,6 +255,10 @@ export class ApiClient {
       headers.set("content-type", "application/json");
     }
 
+    if (options.raw !== undefined) {
+      headers.set("content-type", "application/octet-stream");
+    }
+
     if (options.token) {
       headers.set("authorization", `Bearer ${options.token}`);
     }
@@ -236,7 +266,9 @@ export class ApiClient {
     const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
       method: options.method ?? "GET",
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body:
+        options.raw ??
+        (options.body === undefined ? undefined : JSON.stringify(options.body)),
       signal: options.signal,
     });
 
@@ -310,6 +342,28 @@ export class ApiClient {
       token,
       body,
     });
+  }
+
+  listOnboardingTemplates(token: string): Promise<OnboardingTemplate[]> {
+    return this.request<OnboardingTemplate[]>("/onboarding/templates", { token });
+  }
+
+  applyOnboardingTemplate(token: string, id: string): Promise<OnboardingResult> {
+    return this.request<OnboardingResult>(
+      `/onboarding/templates/${encodeURIComponent(id)}/apply`,
+      { method: "POST", token },
+    );
+  }
+
+  importMaterials(
+    token: string,
+    bytes: BodyInit,
+    format: "xlsx" | "csv",
+  ): Promise<OnboardingResult> {
+    return this.request<OnboardingResult>(
+      `/onboarding/import?format=${format}`,
+      { method: "POST", raw: bytes, token },
+    );
   }
 
   getDashboard(token: string): Promise<Dashboard> {
