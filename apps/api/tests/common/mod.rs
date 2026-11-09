@@ -12,7 +12,7 @@ use http_body_util::BodyExt;
 use serde_json::{json, Value};
 use sqlx::PgPool;
 use takar_api::{
-    auth::{jwt::JwtConfig, otp::OtpSender},
+    auth::{contact::Contact, jwt::JwtConfig, otp::OtpSender},
     router, AppState,
 };
 use tower::ServiceExt;
@@ -27,11 +27,11 @@ pub struct CaptureOtp {
 
 #[async_trait]
 impl OtpSender for CaptureOtp {
-    async fn send(&self, contact: &str, code: &str) -> Result<(), String> {
+    async fn send(&self, contact: &Contact, code: &str, _ttl: i64) -> Result<(), String> {
         self.codes
             .lock()
             .expect("lock")
-            .push((contact.to_string(), code.to_string()));
+            .push((contact.as_str().to_string(), code.to_string()));
         Ok(())
     }
 }
