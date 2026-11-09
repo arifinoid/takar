@@ -163,6 +163,61 @@ export const en = {
       viewer: "Viewer",
     },
   },
+  onboarding: {
+    title: "Set up ingredients",
+    subtitle: "Start from a template or import the list you already keep.",
+    openStock: "Open ingredients",
+    templates: {
+      title: "Business templates",
+      subtitle: "Pick the closest one. Every ingredient stays editable.",
+      items: "{count} ingredients",
+      apply: "Use template",
+      applying: "Adding…",
+      bakery: {
+        name: "Bakery & cake",
+        description: "Flour, butter, eggs, chocolate, and packaging.",
+      },
+      coffee: {
+        name: "Coffee shop",
+        description: "Beans, milk, syrups, cups, and lids.",
+      },
+      rice_bowl: {
+        name: "Rice bowl & warteg",
+        description: "Rice, protein, spices, and takeaway boxes.",
+      },
+      dessert: {
+        name: "Dessert & drinks",
+        description: "Milk, jelly, canned fruit, and cups.",
+      },
+    },
+    import: {
+      title: "Import from Excel",
+      subtitle: "Name, unit, minimum stock, and shelf life in days.",
+      columns: "Name · Unit · Minimum stock · Shelf life (days)",
+      accepted: "Up to {max} rows · .xlsx, .xls, .ods, or .csv",
+      pick: "Choose file",
+      sample: "Download sample",
+      sampleFile:
+        "Nama,Satuan,Stok minimum,Umur simpan\nFlour,kg,5,180\nSugar,kg,3,\nSalt,kg,1,730\n",
+      uploading: "Uploading…",
+      failed: "The file could not be read. Check the columns and try again.",
+      rowError: "Row {row}",
+      errors: {
+        name_required: "Name is empty.",
+        name_too_long: "Name is longer than 120 characters.",
+        unknown_unit: "Unit not recognised. Use g, kg, ml, l, pcs, or lusin.",
+        invalid_min_stock: "Minimum stock must be zero or more.",
+        invalid_shelf_life: "Shelf life must be a whole number of days.",
+        generic: "This row was skipped.",
+      },
+    },
+    result: {
+      created: "{count} ingredients added.",
+      skipped: "{count} already existed and were skipped.",
+      errors: "{count} rows could not be read.",
+    },
+    noPermission: "Only an owner or admin can add ingredients.",
+  },
   nav: {
     operations: "OPERATIONS",
     sales: "SALES",
@@ -253,6 +308,7 @@ export const en = {
       title: "No ingredients yet",
       body: "Add your first ingredient to start recording batches.",
       cta: "Add ingredient",
+      template: "Use a template",
       filtered: "No ingredients match this filter.",
     },
     panel: {

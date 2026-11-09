@@ -117,7 +117,7 @@ export default function DashboardPage() {
               <div className="card dash__empty">
                 <h2>{t.dashboard.emptyTenant.title}</h2>
                 <p>{t.dashboard.emptyTenant.body}</p>
-                <Link className="btn btn--primary" href="/stock">
+                <Link className="btn btn--primary" href="/onboarding">
                   {t.dashboard.emptyTenant.cta}
                 </Link>
               </div>

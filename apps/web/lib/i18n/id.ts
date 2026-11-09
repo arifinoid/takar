@@ -162,6 +162,61 @@ export const id: Dictionary = {
       viewer: "Pengamat",
     },
   },
+  onboarding: {
+    title: "Siapkan bahan",
+    subtitle: "Mulai dari template usaha atau impor daftar yang sudah kamu punya.",
+    openStock: "Buka stok",
+    templates: {
+      title: "Template usaha",
+      subtitle: "Pilih yang paling dekat. Semua bahan tetap bisa diubah.",
+      items: "{count} bahan",
+      apply: "Pakai template",
+      applying: "Menambahkan…",
+      bakery: {
+        name: "Bakery & kue",
+        description: "Tepung, mentega, telur, cokelat, dan kemasan.",
+      },
+      coffee: {
+        name: "Coffee shop",
+        description: "Biji kopi, susu, sirup, cup, dan lid.",
+      },
+      rice_bowl: {
+        name: "Rice bowl & warteg",
+        description: "Beras, protein, bumbu, dan box makan.",
+      },
+      dessert: {
+        name: "Dessert & minuman",
+        description: "Susu, jelly, buah kaleng, dan cup.",
+      },
+    },
+    import: {
+      title: "Impor dari Excel",
+      subtitle: "Nama, satuan, stok minimum, dan umur simpan dalam hari.",
+      columns: "Nama · Satuan · Stok minimum · Umur simpan (hari)",
+      accepted: "Maksimal {max} baris · .xlsx, .xls, .ods, atau .csv",
+      pick: "Pilih file",
+      sample: "Unduh contoh",
+      sampleFile:
+        "Nama,Satuan,Stok minimum,Umur simpan\nTepung terigu,kg,5,180\nGula pasir,kg,3,\nGaram,kg,1,730\n",
+      uploading: "Mengunggah…",
+      failed: "File tidak bisa dibaca. Cek urutan kolomnya lalu coba lagi.",
+      rowError: "Baris {row}",
+      errors: {
+        name_required: "Nama bahan kosong.",
+        name_too_long: "Nama lebih dari 120 karakter.",
+        unknown_unit: "Satuan tidak dikenal. Pakai g, kg, ml, l, pcs, atau lusin.",
+        invalid_min_stock: "Stok minimum harus nol atau lebih.",
+        invalid_shelf_life: "Umur simpan harus bilangan bulat hari.",
+        generic: "Baris ini dilewati.",
+      },
+    },
+    result: {
+      created: "{count} bahan ditambahkan.",
+      skipped: "{count} sudah ada dan dilewati.",
+      errors: "{count} baris tidak bisa dibaca.",
+    },
+    noPermission: "Hanya pemilik atau admin yang bisa menambah bahan.",
+  },
   nav: {
     operations: "OPERASIONAL",
     sales: "PENJUALAN",
@@ -252,6 +307,7 @@ export const id: Dictionary = {
       title: "Belum ada bahan",
       body: "Tambahkan bahan pertama untuk mulai mencatat batch.",
       cta: "Tambah bahan",
+      template: "Pakai template",
       filtered: "Tidak ada bahan yang cocok dengan filter ini.",
     },
     panel: {
