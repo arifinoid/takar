@@ -80,12 +80,31 @@ fn dev_code(state: &AppState) -> Option<String> {
     }
 }
 
+/// Codes a single contact may request inside one ten-minute window. Generous
+/// enough for a retry or a second device, tight enough that one number cannot
+/// burn a free provider quota.
+const MAX_CODES_PER_WINDOW: i64 = 5;
+
 pub async fn request_otp(
     State(state): State<AppState>,
     Json(body): Json<OtpRequestBody>,
 ) -> Result<(StatusCode, Json<serde_json::Value>), ApiError> {
     let contact = Contact::parse(&body.contact)?;
     let db = state.db()?;
+
+    // Free provider quotas are finite, so one contact cannot ask for a new code
+    // as often as it likes.
+    let recent: (i64,) = sqlx::query_as(
+        "select count(*) from otp_codes
+         where contact = $1 and created_at > now() - interval '10 minutes'",
+    )
+    .bind(contact.as_str())
+    .fetch_one(db)
+    .await?;
+
+    if recent.0 >= MAX_CODES_PER_WINDOW {
+        return Err(ApiError::TooManyRequests("rate_limited"));
+    }
 
     let code = dev_code(&state).unwrap_or_else(otp::generate_code);
     let code_hash = secret::hash(&state.jwt.secret, &code);
@@ -100,11 +119,11 @@ pub async fn request_otp(
 
     state
         .otp
-        .send(contact.as_str(), &code)
+        .send(&contact, &code, state.otp_ttl_seconds)
         .await
         .map_err(|error| {
             tracing::error!(%error, "otp delivery failed");
-            ApiError::ServiceUnavailable
+            ApiError::Dependency("otp_delivery_failed")
         })?;
 
     Ok((

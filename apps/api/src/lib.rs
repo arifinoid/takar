@@ -5,6 +5,7 @@ pub mod config;
 pub mod dashboard;
 pub mod error;
 pub mod master;
+pub mod notify;
 pub mod onboarding;
 pub mod stock;
 

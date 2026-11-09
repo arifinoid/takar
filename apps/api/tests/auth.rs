@@ -229,3 +229,35 @@ async fn local_phone_format_signs_into_the_same_account(pool: PgPool) {
         assert_eq!(tenant_of(&app, token).await, tenant_id, "{contact}");
     }
 }
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn requesting_codes_is_throttled_per_contact(pool: PgPool) {
+    let otp = CaptureOtp::default();
+    let app = test_app(pool, otp.clone());
+
+    let body = json!({ "contact": "+6281234567890" });
+
+    for _ in 0..5 {
+        let (status, response) =
+            call(&app, "POST", "/auth/otp/request", Some(body.clone()), None).await;
+        assert_eq!(status, StatusCode::ACCEPTED, "{response}");
+    }
+
+    let (status, response) = call(&app, "POST", "/auth/otp/request", Some(body), None).await;
+    assert_eq!(status, StatusCode::TOO_MANY_REQUESTS, "{response}");
+    assert_eq!(response["error"]["code"], "rate_limited");
+
+    let (status, response) = call(
+        &app,
+        "POST",
+        "/auth/otp/request",
+        Some(json!({ "contact": "+628999888777" })),
+        None,
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::ACCEPTED,
+        "another contact has its own window: {response}"
+    );
+}

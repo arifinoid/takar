@@ -14,6 +14,9 @@ pub enum ApiError {
     TooManyRequests(&'static str),
     Conflict(&'static str),
     ServiceUnavailable,
+    /// A dependency outside our control failed: email, WhatsApp, a gateway.
+    /// Carries its own code so it is never reported as a database problem.
+    Dependency(&'static str),
     Internal(anyhow::Error),
 }
 
@@ -29,6 +32,7 @@ impl IntoResponse for ApiError {
             ApiError::ServiceUnavailable => {
                 (StatusCode::SERVICE_UNAVAILABLE, "database_unavailable")
             }
+            ApiError::Dependency(code) => (StatusCode::SERVICE_UNAVAILABLE, code),
             ApiError::Internal(error) => {
                 tracing::error!(%error, "internal error");
                 (StatusCode::INTERNAL_SERVER_ERROR, "internal_error")

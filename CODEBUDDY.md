@@ -35,6 +35,8 @@ cargo fmt --all
 
 Local sign-in: the API loads `.env` at startup. With `DEV_OTP_CODE` set (default `000000`), debug builds use that fixed code for any contact instead of a random one, so authenticated routes are reachable without reading the log. Release builds always randomize.
 
+OTP delivery is picked from the environment, never from code: `EMAIL_PROVIDER=brevo` with `BREVO_API_KEY`, `EMAIL_FROM`, `EMAIL_FROM_NAME`, and `WHATSAPP_PROVIDER=fonnte` with `FONNTE_TOKEN`. With none set, debug builds write the message to the log and release builds answer `otp_delivery_failed`. Transports live in `apps/api/src/notify/` and are reused for alerts in P1-07; adding a provider is one module, not a change to the OTP path. A contact may request five codes per ten minutes.
+
 Database:
 
 ```bash

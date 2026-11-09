@@ -81,6 +81,7 @@ export const en = {
       invalidContact: "Enter a valid WhatsApp number or email.",
       invalidCode: "That code is wrong or has expired.",
       tooManyAttempts: "Too many attempts. Request a new code.",
+      rateLimited: "Too many codes requested. Wait a few minutes.",
       generic: "Something went wrong. Try again.",
     },
     foot: {

@@ -80,6 +80,7 @@ export const id: Dictionary = {
       invalidContact: "Masukkan nomor WhatsApp atau email yang valid.",
       invalidCode: "Kode salah atau sudah kedaluwarsa.",
       tooManyAttempts: "Terlalu banyak percobaan. Minta kode baru.",
+      rateLimited: "Terlalu banyak permintaan kode. Tunggu beberapa menit.",
       generic: "Ada yang salah. Coba lagi.",
     },
     foot: {

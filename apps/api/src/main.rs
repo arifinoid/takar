@@ -1,8 +1,6 @@
 use std::net::SocketAddr;
-use std::sync::Arc;
-
 use takar_api::{
-    auth::{otp::LogOtpSender, JwtConfig},
+    auth::{otp, JwtConfig},
     config::{Config, DEV_JWT_SECRET},
     router, AppState,
 };
@@ -46,13 +44,15 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    let otp = otp::build(&config);
+
     let state = AppState {
         db,
         jwt: JwtConfig {
             secret: config.jwt_secret,
             ttl_seconds: config.jwt_ttl_seconds,
         },
-        otp: Arc::new(LogOtpSender),
+        otp,
         otp_ttl_seconds: config.otp_ttl_seconds,
         jwt_ttl_seconds: config.jwt_ttl_seconds,
         dev_otp_code: config.dev_otp_code,

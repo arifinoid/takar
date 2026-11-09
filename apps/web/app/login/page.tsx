@@ -53,6 +53,8 @@ export default function LoginPage() {
           return t.login.errors.invalidCode;
         case "too_many_attempts":
           return t.login.errors.tooManyAttempts;
+        case "rate_limited":
+          return t.login.errors.rateLimited;
       }
     }
 
