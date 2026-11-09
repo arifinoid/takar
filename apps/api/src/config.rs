@@ -10,6 +10,8 @@ pub struct Config {
     pub jwt_ttl_seconds: i64,
     /// Fixed OTP for local sign-in. Honored by debug builds only.
     pub dev_otp_code: Option<String>,
+    /// Public base URL, used for links inside messages.
+    pub app_url: String,
     pub otp: OtpConfig,
 }
 
@@ -64,6 +66,12 @@ impl Config {
             .and_then(|value| value.parse().ok())
             .unwrap_or(86_400);
 
+        let app_url = std::env::var("APP_URL")
+            .ok()
+            .map(|value| value.trim().trim_end_matches('/').to_string())
+            .filter(|value| !value.is_empty())
+            .unwrap_or_else(|| "https://takar.arifinoid.web.id".to_string());
+
         let dev_otp_code = std::env::var("DEV_OTP_CODE")
             .ok()
             .map(|value| value.trim().to_string())
@@ -83,6 +91,7 @@ impl Config {
             otp_ttl_seconds,
             jwt_ttl_seconds,
             dev_otp_code,
+            app_url,
             otp: otp_config(),
         }
     }

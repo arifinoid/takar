@@ -1,5 +1,6 @@
 //! Postgres access layer for Takar.
 
+pub mod alert_delivery;
 pub mod alerts;
 
 use sqlx::postgres::{PgPool, PgPoolOptions};

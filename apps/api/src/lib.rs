@@ -1,5 +1,6 @@
 //! HTTP layer for Takar. This is the only place that owns server behavior.
 
+pub mod alerts;
 pub mod auth;
 pub mod config;
 pub mod dashboard;

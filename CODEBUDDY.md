@@ -58,10 +58,12 @@ DATABASE_URL=postgres://takar:takar@127.0.0.1:5432/takar cargo test -p takar-db
 Daily jobs (run from cron in deployment):
 
 ```bash
-cargo run -p takar-api --bin alert_job     # fills and resolves alerts; safe to re-run
+cargo run -p takar-api --bin alert_job     # fills, resolves, and sends alerts; safe to re-run
 ```
 
 The job claims tenants with `skip locked`, so it needs a database role that can see every tenant — the migration role or a role with `bypassrls`. Per-tenant work still runs in a tenant-scoped transaction.
+
+Delivery goes through the same `notify::Router` as OTP. Each tenant gets one digest per channel, not one message per alert; every attempt is recorded (`delivery_status`, `attempts`, `last_error`), a failure is retried on the next run up to three attempts, and a tenant without an owner contact is marked `skipped` instead of retrying forever. Links in the message point at `APP_URL`.
 
 `#[sqlx::test]` creates a throwaway database per test, so the URL must point at a server where the user can create databases. The compose user is the cluster superuser, which satisfies that requirement for development only.
 
