@@ -39,6 +39,7 @@ struct Recipient<'a> {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct Payload<'a> {
     sender: Sender<'a>,
     to: Vec<Recipient<'a>>,
@@ -76,5 +77,36 @@ impl Transport for BrevoTransport {
         check(response).await?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn payload_uses_the_field_names_brevo_expects() {
+        let payload = Payload {
+            sender: Sender {
+                email: "from@example.test",
+                name: "Takar",
+            },
+            to: vec![Recipient {
+                email: "to@example.test",
+            }],
+            subject: "Subject",
+            text_content: "Body",
+        };
+
+        let json = serde_json::to_value(&payload).expect("serialize");
+
+        assert_eq!(json["sender"]["email"], "from@example.test");
+        assert_eq!(json["to"][0]["email"], "to@example.test");
+        assert_eq!(json["subject"], "Subject");
+        assert_eq!(json["textContent"], "Body");
+        assert!(
+            json.get("text_content").is_none(),
+            "Brevo rejects snake_case field names"
+        );
     }
 }
