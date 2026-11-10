@@ -311,6 +311,14 @@ pub async fn create_recipe(
         .await?;
     }
 
+    // The product produces with the newest version; older rows stay for the
+    // production history that already consumed them.
+    sqlx::query("update products set current_recipe_id = $1, updated_at = now() where id = $2")
+        .bind(id)
+        .bind(product_id)
+        .execute(&mut *tx)
+        .await?;
+
     let recipe = fetch_recipe(&mut tx, auth.tenant_id, id).await?;
     tx.commit().await?;
 
