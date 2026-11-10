@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "app.takar.desktop",
   "build": {
-    "beforeDevCommand": "bun --cwd ../web run dev",
+    "beforeDevCommand": "cd ../web && bun run dev",
     "devUrl": "http://localhost:3000",
-    "beforeBuildCommand": "bun --cwd ../web run build",
+    "beforeBuildCommand": "cd ../web && bun run build",
     "frontendDist": "../../web/out"
   },
   "app": {
