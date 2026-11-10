@@ -27,6 +27,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 sqlx = { workspace = true }
+takar-core = { workspace = true }
 takar-db = { workspace = true }
 takar-domain = { workspace = true }
 tokio = { workspace = true }
