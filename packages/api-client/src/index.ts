@@ -49,6 +49,9 @@ export type Product = {
   sku: string | null;
   sell_price: string;
   stock_qty: string;
+  /** Null until the product has a recipe; such a product cannot be produced. */
+  current_recipe_id: string | null;
+  current_recipe_version: number | null;
   created_at: string;
   updated_at: string;
 };

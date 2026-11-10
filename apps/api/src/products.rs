@@ -26,6 +26,10 @@ pub struct ProductView {
     pub sku: Option<String>,
     pub sell_price: Decimal,
     pub stock_qty: Decimal,
+    /// Null until the product has a recipe; a product without one cannot be
+    /// produced.
+    pub current_recipe_id: Option<Uuid>,
+    pub current_recipe_version: Option<i32>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -43,15 +47,29 @@ type ProductRow = (
     Option<String>,
     Decimal,
     Decimal,
+    Option<Uuid>,
+    Option<i32>,
     DateTime<Utc>,
     DateTime<Utc>,
 );
 
-const SELECT: &str =
-    "select id, name, sku, sell_price, stock_qty, created_at, updated_at from products";
+const SELECT: &str = "select p.id, p.name, p.sku, p.sell_price, p.stock_qty,
+            p.current_recipe_id, r.version, p.created_at, p.updated_at
+     from products p
+     left join recipes r on r.id = p.current_recipe_id";
 
 fn view(row: ProductRow) -> ProductView {
-    let (id, name, sku, sell_price, stock_qty, created_at, updated_at) = row;
+    let (
+        id,
+        name,
+        sku,
+        sell_price,
+        stock_qty,
+        current_recipe_id,
+        current_recipe_version,
+        created_at,
+        updated_at,
+    ) = row;
 
     ProductView {
         id,
@@ -59,6 +77,8 @@ fn view(row: ProductRow) -> ProductView {
         sku,
         sell_price,
         stock_qty,
+        current_recipe_id,
+        current_recipe_version,
         created_at,
         updated_at,
     }
@@ -93,7 +113,7 @@ async fn fetch_product(
     id: Uuid,
 ) -> Result<ProductView, ApiError> {
     let row: Option<ProductRow> = sqlx::query_as(&format!(
-        "{SELECT} where tenant_id = $1 and id = $2 and is_active"
+        "{SELECT} where p.tenant_id = $1 and p.id = $2 and p.is_active"
     ))
     .bind(tenant_id)
     .bind(id)
@@ -112,7 +132,7 @@ pub async fn list_products(
     let mut tx = takar_db::begin_scoped(db, Some(auth.tenant_id), Some(auth.user_id)).await?;
 
     let rows: Vec<ProductRow> = sqlx::query_as(&format!(
-        "{SELECT} where tenant_id = $1 and is_active order by name"
+        "{SELECT} where p.tenant_id = $1 and p.is_active order by p.name"
     ))
     .bind(auth.tenant_id)
     .fetch_all(&mut *tx)

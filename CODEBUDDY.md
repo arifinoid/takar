@@ -98,7 +98,7 @@ Stock is a batch ledger, not a scalar. `material_batches.qty_remaining` is on-ha
 
 ### Recipes
 
-Recipes are versioned, never edited in place. Creating a recipe version deactivates the previous one, and every version keeps its own `recipe_items`; production will point at the exact version it consumed so historical HPP never changes. A partial unique index enforces one active version per product, and the database rejects a recipe whose product belongs to another tenant. Products share the `recipe_read`/`recipe_write` permissions — the RBAC matrix has no separate product permission.
+Recipes are versioned, never edited in place. Creating a recipe version deactivates the previous one, and every version keeps its own `recipe_items`; production will point at the exact version it consumed so historical HPP never changes. A partial unique index enforces one active version per product, and the database rejects a recipe whose product belongs to another tenant. `products.current_recipe_id` follows the newest version and is null when the product has no recipe. Products share the `recipe_read`/`recipe_write` permissions — the RBAC matrix has no separate product permission.
 
 ### Tenancy
 
