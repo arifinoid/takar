@@ -119,6 +119,9 @@ Goal: an HPP that users trust and use to set selling prices. This is the densest
 | P2-05 | HPP in core + snapshot into `production_orders` | Golden tests; historical HPP does not change when material prices rise |
 | P2-06 | Production UI: pick product + qty, preview requirements, confirm, show HPP + margin | One flow without reloads; required versus actual usage is visible |
 | P2-07 | Offline outbox (see D2): local SQLite, queue, sync endpoint, conflict policy | Stock entries made offline sync after reconnect without duplicates |
+| P2-08 | Tenant labor rate: `tenants.labor_rate_per_hour` plus a settings endpoint; production snapshots `labor_cost` from `recipe.labor_minutes × rate` | New orders include labor in HPP; existing orders keep their material-only snapshot |
+
+**HPP scope note.** P2-05 snapshots material cost only: labor and overhead are stored as zero because no rate exists yet, while `takar_core::production_cost` already accepts both components. Add P2-08 before the phase 2 gate so the HPP users price from includes labor. Overhead stays out until `cost_overheads` gets an input flow; when it lands, a monthly amount allocated per unit is the recommended shape.
 
 **Phase 2 gate:** users trust the HPP and start using it to set prices.
 

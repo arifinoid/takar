@@ -10,7 +10,9 @@
 //! - `rust_decimal` for money and quantities, never `f64`.
 
 pub mod fefo;
+pub mod hpp;
 pub mod requirement;
 
 pub use fefo::{allocate, Allocation, AllocationLine, FefoError, StockBatch};
+pub use hpp::{production_cost, Consumption, CostError, ProductionCost};
 pub use requirement::{material_requirement, RequirementError};
