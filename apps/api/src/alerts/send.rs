@@ -37,10 +37,11 @@ pub async fn send_pending(
     let mut groups: BTreeMap<(Uuid, String, Option<String>), Vec<PendingAlert>> = BTreeMap::new();
 
     for alert in pending {
+        let (channel, recipient) = route(&alert);
         let key = (
             alert.tenant_id,
-            alert.channel.clone(),
-            alert.recipient().map(str::to_string),
+            channel.to_string(),
+            recipient.map(str::to_string),
         );
 
         groups.entry(key).or_default().push(alert);
@@ -117,4 +118,33 @@ pub async fn send_pending(
     }
 
     Ok(report)
+}
+
+/// Picks the channel for one alert.
+///
+/// The rule's channel wins. When the tenant has no contact for it, the other
+/// channel is used instead: a shop that signed up with an email address should
+/// still hear about expiring stock, and silently skipping it would make the
+/// whole job look broken. With neither contact, the preferred channel is kept
+/// so the skip is recorded against something meaningful.
+fn route(alert: &PendingAlert) -> (&str, Option<&str>) {
+    let preferred = alert.channel.as_str();
+
+    if Channel::parse(preferred).is_none() {
+        return (preferred, None);
+    }
+
+    if let Some(recipient) = alert.contact(preferred) {
+        return (preferred, Some(recipient));
+    }
+
+    let other = match preferred {
+        "email" => "whatsapp",
+        _ => "email",
+    };
+
+    match alert.contact(other) {
+        Some(recipient) => (other, Some(recipient)),
+        None => (preferred, None),
+    }
 }

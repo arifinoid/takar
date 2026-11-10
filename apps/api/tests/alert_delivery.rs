@@ -94,15 +94,16 @@ async fn tenant_with_defaults(pool: &PgPool, name: &str) -> Uuid {
     tenant_id
 }
 
-async fn add_owner(
+async fn add_member(
     pool: &PgPool,
     tenant_id: Uuid,
+    role: &str,
     phone: Option<&str>,
     email: Option<&str>,
 ) -> Uuid {
     let user_id = Uuid::new_v4();
 
-    sqlx::query("insert into users (id, name, phone, email) values ($1, 'Owner', $2, $3)")
+    sqlx::query("insert into users (id, name, phone, email) values ($1, 'Member', $2, $3)")
         .bind(user_id)
         .bind(phone)
         .bind(email)
@@ -110,14 +111,24 @@ async fn add_owner(
         .await
         .expect("user");
 
-    sqlx::query("insert into memberships (tenant_id, user_id, role) values ($1, $2, 'owner')")
+    sqlx::query("insert into memberships (tenant_id, user_id, role) values ($1, $2, $3)")
         .bind(tenant_id)
         .bind(user_id)
+        .bind(role)
         .execute(pool)
         .await
         .expect("membership");
 
     user_id
+}
+
+async fn add_owner(
+    pool: &PgPool,
+    tenant_id: Uuid,
+    phone: Option<&str>,
+    email: Option<&str>,
+) -> Uuid {
+    add_member(pool, tenant_id, "owner", phone, email).await
 }
 
 async fn add_material(pool: &PgPool, tenant_id: Uuid, name: &str, min_stock: &str) -> Uuid {
@@ -330,10 +341,78 @@ async fn a_failed_send_stays_pending_and_is_retried(pool: PgPool) {
 }
 
 #[sqlx::test(migrations = "../../migrations")]
-async fn a_tenant_without_a_phone_skips_instead_of_failing_forever(pool: PgPool) {
+async fn an_email_only_owner_gets_the_digest_by_email(pool: PgPool) {
     let today = date(2026, 11, 9);
     let tenant_id = tenant_with_defaults(&pool, "Dapur Uji").await;
     add_owner(&pool, tenant_id, None, Some("owner@example.test")).await;
+    let material_id = add_material(&pool, tenant_id, "Beras", "5").await;
+    add_batch(&pool, tenant_id, material_id, "1", None).await;
+
+    run_on(&pool, today).await.expect("run alerts");
+
+    let email = Arc::new(Recorder::default());
+    let phone = Arc::new(Recorder::default());
+    let router = Router::new(Some(email.clone()), Some(phone.clone()), None);
+
+    let report = send_pending(&pool, &router, "https://takar.test/", today)
+        .await
+        .expect("send");
+
+    assert_eq!(report.sent, 1);
+    assert!(
+        phone.messages().is_empty(),
+        "the rule prefers WhatsApp, but there is no number"
+    );
+    assert_eq!(email.messages().len(), 1);
+    assert_eq!(email.messages()[0].to, "owner@example.test");
+
+    let rows = deliveries(&pool, tenant_id).await;
+    assert_eq!(
+        rows[0].channel.as_deref(),
+        Some("email"),
+        "the recorded channel is the one actually used"
+    );
+    assert_eq!(rows[0].recipient.as_deref(), Some("owner@example.test"));
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn a_phone_only_owner_gets_an_email_rule_by_whatsapp(pool: PgPool) {
+    let today = date(2026, 11, 9);
+    let tenant_id = tenant_with_defaults(&pool, "Dapur Uji").await;
+    add_owner(&pool, tenant_id, Some("+6281234567890"), None).await;
+    let material_id = add_material(&pool, tenant_id, "Beras", "5").await;
+    add_batch(&pool, tenant_id, material_id, "1", None).await;
+
+    sqlx::query("update alert_rules set channel = 'email' where tenant_id = $1")
+        .bind(tenant_id)
+        .execute(&pool)
+        .await
+        .expect("switch channel");
+
+    run_on(&pool, today).await.expect("run alerts");
+
+    let email = Arc::new(Recorder::default());
+    let phone = Arc::new(Recorder::default());
+    let router = Router::new(Some(email.clone()), Some(phone.clone()), None);
+
+    let report = send_pending(&pool, &router, "https://takar.test/", today)
+        .await
+        .expect("send");
+
+    assert_eq!(report.sent, 1);
+    assert!(email.messages().is_empty());
+    assert_eq!(phone.messages().len(), 1);
+    assert_eq!(phone.messages()[0].to, "+6281234567890");
+
+    let rows = deliveries(&pool, tenant_id).await;
+    assert_eq!(rows[0].channel.as_deref(), Some("whatsapp"));
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn a_tenant_without_an_owner_is_skipped(pool: PgPool) {
+    let today = date(2026, 11, 9);
+    let tenant_id = tenant_with_defaults(&pool, "Dapur Uji").await;
+    add_member(&pool, tenant_id, "admin", Some("+6281234567890"), None).await;
     let material_id = add_material(&pool, tenant_id, "Beras", "5").await;
     add_batch(&pool, tenant_id, material_id, "1", None).await;
 
