@@ -43,6 +43,51 @@ export type Material = {
   updated_at: string;
 };
 
+export type Product = {
+  id: string;
+  name: string;
+  sku: string | null;
+  sell_price: string;
+  stock_qty: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProductRequest = {
+  name: string;
+  sku?: string | null;
+  sell_price?: string;
+};
+
+export type RecipeItem = {
+  material_id: string;
+  material_name: string;
+  unit_code: string;
+  qty: string;
+  waste_pct: string;
+};
+
+export type Recipe = {
+  id: string;
+  product_id: string;
+  version: number;
+  yield_qty: string;
+  labor_minutes: number;
+  is_active: boolean;
+  created_at: string;
+  items: RecipeItem[];
+};
+
+export type CreateRecipeRequest = {
+  yield_qty: string;
+  labor_minutes?: number;
+  items: {
+    material_id: string;
+    qty: string;
+    waste_pct?: string;
+  }[];
+};
+
 export type StockLevel = {
   material_id: string;
   name: string;
@@ -229,7 +274,7 @@ export class ApiError extends Error {
 }
 
 type RequestOptions = {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   /** Raw upload, sent as-is instead of JSON. */
   raw?: BodyInit;
@@ -342,6 +387,50 @@ export class ApiClient {
       token,
       body,
     });
+  }
+
+  listProducts(token: string): Promise<Product[]> {
+    return this.request<Product[]>("/products", { token });
+  }
+
+  createProduct(token: string, body: ProductRequest): Promise<Product> {
+    return this.request<Product>("/products", {
+      method: "POST",
+      token,
+      body,
+    });
+  }
+
+  updateProduct(token: string, id: string, body: ProductRequest): Promise<Product> {
+    return this.request<Product>(`/products/${id}`, {
+      method: "PUT",
+      token,
+      body,
+    });
+  }
+
+  removeProduct(token: string, id: string): Promise<void> {
+    return this.request<void>(`/products/${id}`, { method: "DELETE", token });
+  }
+
+  listRecipes(token: string, productId: string): Promise<Recipe[]> {
+    return this.request<Recipe[]>(`/products/${productId}/recipes`, { token });
+  }
+
+  createRecipe(
+    token: string,
+    productId: string,
+    body: CreateRecipeRequest,
+  ): Promise<Recipe> {
+    return this.request<Recipe>(`/products/${productId}/recipes`, {
+      method: "POST",
+      token,
+      body,
+    });
+  }
+
+  getRecipe(token: string, id: string): Promise<Recipe> {
+    return this.request<Recipe>(`/recipes/${id}`, { token });
   }
 
   listOnboardingTemplates(token: string): Promise<OnboardingTemplate[]> {

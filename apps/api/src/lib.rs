@@ -8,6 +8,8 @@ pub mod error;
 pub mod master;
 pub mod notify;
 pub mod onboarding;
+pub mod products;
+pub mod recipes;
 pub mod stock;
 
 use std::sync::Arc;
@@ -54,6 +56,8 @@ pub fn router(state: AppState) -> Router {
         .merge(auth::routes())
         .merge(master::routes())
         .merge(onboarding::routes())
+        .merge(products::routes())
+        .merge(recipes::routes())
         .merge(stock::routes())
         .with_state(state)
         .layer(cors())
