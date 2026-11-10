@@ -157,6 +157,11 @@ async fn production_consumes_fefo_and_adds_finished_goods(pool: PgPool) {
     assert_eq!(order["recipe_version"], 1);
     assert_eq!(order["planned_qty"], "10.000");
     assert_eq!(order["actual_qty"], "10.000");
+    // 1 × 12000 + 1.625 × 9000 = 26625, spread over 10 units.
+    assert_eq!(order["material_cost"], "26625.00");
+    assert_eq!(order["labor_cost"], "0");
+    assert_eq!(order["overhead_cost"], "0");
+    assert_eq!(order["unit_cost"], "2662.5000");
     assert_eq!(order["produced_on"], "2026-11-10");
     assert_eq!(order["status"], "done");
 
@@ -417,4 +422,52 @@ async fn an_order_keeps_the_recipe_version_it_consumed(pool: PgPool) {
         .await
         .expect("recipe version");
     assert_eq!(version, 1);
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn a_later_purchase_does_not_change_a_past_orders_hpp(pool: PgPool) {
+    let otp = CaptureOtp::default();
+    let app = test_app(pool.clone(), otp.clone());
+    let owner = signup(&app, &otp, "owner@example.test").await;
+    let token = owner["access_token"].as_str().expect("token");
+
+    let product_id = product(&app, token, "Kue lapis").await;
+    let flour = material(&app, token, "Tepung terigu").await;
+    create_recipe(&app, token, product_id, recipe_body(flour, "2.5")).await;
+
+    stocked_batch(&app, token, flour, "5", "2026-12-01", "12000").await;
+
+    let (status, first) = produce(
+        &app,
+        token,
+        json!({ "product_id": product_id, "qty": "10" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{first}");
+    assert_eq!(first["unit_cost"], "3150.0000");
+
+    let first_id = first["id"].as_str().expect("order id");
+
+    // A new purchase costs much more. The old order keeps its snapshot.
+    stocked_batch(&app, token, flour, "5", "2027-01-01", "20000").await;
+
+    let (status, second) = produce(
+        &app,
+        token,
+        json!({ "product_id": product_id, "qty": "10" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{second}");
+
+    // 2.375 kg left at 12000 plus 0.25 kg at 20000 = 33500 over 10 units.
+    assert_eq!(second["material_cost"], "33500.00");
+    assert_eq!(second["unit_cost"], "3350.0000");
+
+    let (recorded,): (String,) =
+        sqlx::query_as("select unit_cost::text from production_orders where id = $1")
+            .bind(first_id.parse::<Uuid>().expect("uuid"))
+            .fetch_one(&pool)
+            .await
+            .expect("first order cost");
+    assert_eq!(recorded, "3150.0000");
 }

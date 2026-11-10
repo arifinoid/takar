@@ -40,6 +40,11 @@ pub struct ProductionOrderView {
     pub recipe_version: i32,
     pub planned_qty: Decimal,
     pub actual_qty: Decimal,
+    pub material_cost: Decimal,
+    pub labor_cost: Decimal,
+    pub overhead_cost: Decimal,
+    /// HPP per finished unit (D7: four decimals).
+    pub unit_cost: Decimal,
     pub produced_on: NaiveDate,
     pub status: String,
     pub created_at: DateTime<Utc>,
@@ -190,19 +195,52 @@ pub async fn create_order(
         ));
     }
 
+    // The cost uses the consumption snapshots, not current batch prices. Labor
+    // and overhead stay zero until a tenant labor rate exists (P2-08); the core
+    // already accepts both components.
+    let consumption_costs: Vec<takar_core::Consumption> = plans
+        .iter()
+        .flat_map(|(_, _, allocation, costs)| {
+            allocation.lines.iter().map(|line| takar_core::Consumption {
+                qty: line.qty,
+                unit_cost: costs[&line.id],
+            })
+        })
+        .collect();
+
+    let cost = takar_core::production_cost(
+        &consumption_costs,
+        Decimal::ZERO,
+        Decimal::ZERO,
+        production_qty,
+    )
+    .map_err(|error| ApiError::Internal(anyhow::Error::new(error)))?;
+
     let produced_on = body.produced_on.unwrap_or_else(|| Utc::now().date_naive());
 
-    let (order_id, created_at): (Uuid, DateTime<Utc>) = sqlx::query_as(
+    let (order_id, created_at, material_cost, labor_cost, overhead_cost, unit_cost): (
+        Uuid,
+        DateTime<Utc>,
+        Decimal,
+        Decimal,
+        Decimal,
+        Decimal,
+    ) = sqlx::query_as(
         "insert into production_orders
-             (tenant_id, product_id, recipe_id, planned_qty, actual_qty, produced_on, created_by)
-         values ($1, $2, $3, $4, $4, $5, $6)
-         returning id, created_at",
+             (tenant_id, product_id, recipe_id, planned_qty, actual_qty, produced_on,
+              material_cost, labor_cost, overhead_cost, unit_cost, created_by)
+         values ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10)
+         returning id, created_at, material_cost, labor_cost, overhead_cost, unit_cost",
     )
     .bind(auth.tenant_id)
     .bind(body.product_id)
     .bind(recipe_id)
     .bind(production_qty)
     .bind(produced_on)
+    .bind(cost.material_cost)
+    .bind(cost.labor_cost)
+    .bind(cost.overhead_cost)
+    .bind(cost.unit_cost)
     .bind(auth.user_id)
     .fetch_one(&mut *tx)
     .await?;
@@ -282,6 +320,10 @@ pub async fn create_order(
             recipe_version,
             planned_qty: production_qty,
             actual_qty: production_qty,
+            material_cost,
+            labor_cost,
+            overhead_cost,
+            unit_cost,
             produced_on,
             status: "done".to_string(),
             created_at,
