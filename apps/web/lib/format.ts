@@ -20,6 +20,13 @@ export function formatMoney(value: number, locale: Locale): string {
   }).format(value);
 }
 
+/** Percent values arrive as decimal strings, e.g. "82.25". */
+export function formatPercent(value: string, locale: Locale): string {
+  return new Intl.NumberFormat(localeTag(locale), {
+    maximumFractionDigits: 2,
+  }).format(Number(value)) + "%";
+}
+
 /** Parses a date-only string as a local date, so the day never shifts. */
 export function parseDate(value: string): Date {
   const [year, month, day] = value.split("-").map(Number);

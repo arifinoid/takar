@@ -20,7 +20,7 @@ import { useI18n } from "@/lib/i18n";
 
 import { LocaleSwitch } from "./locale-switch";
 
-type Active = "overview" | "stock";
+type Active = "overview" | "stock" | "production";
 
 type Item = {
   key: string;
@@ -58,7 +58,12 @@ export function AppShell({ me, active, onSignOut, children }: Props) {
           icon: LayoutDashboard,
           href: "/dashboard",
         },
-        { key: "production", label: t.nav.production, icon: ChefHat },
+        {
+          key: "production",
+          label: t.nav.production,
+          icon: ChefHat,
+          href: "/production",
+        },
         { key: "stock", label: t.nav.stock, icon: Package, href: "/stock" },
         { key: "batches", label: t.nav.batches, icon: CalendarClock },
       ],
@@ -182,10 +187,15 @@ export function AppShell({ me, active, onSignOut, children }: Props) {
           <Package size={18} />
           <span>{t.nav.mobileStock}</span>
         </Link>
-        <span className="tabbar__item tabbar__item--disabled" aria-disabled="true">
-          <ShoppingCart size={18} />
-          <span>{t.nav.mobileCashier}</span>
-        </span>
+        <Link
+          href="/production"
+          className={`tabbar__item${
+            active === "production" ? " tabbar__item--active" : ""
+          }`}
+        >
+          <ChefHat size={18} />
+          <span>{t.nav.mobileProduction}</span>
+        </Link>
         <span className="tabbar__item tabbar__item--disabled" aria-disabled="true">
           <MessageCircle size={18} />
           <span>{t.nav.mobileAlerts}</span>
