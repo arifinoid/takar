@@ -74,12 +74,14 @@ jobs:
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
       # Every commit lands in its own release directory:
-      #   bin/takar-api, out/, migrations/, deploy/vps/grant.sql
+      #   bin/takar-api, bin/alert_job, out/, migrations/, deploy/vps/grant.sql
+      # Both binaries ship: the systemd timer runs alert_job from the same
+      # release directory the API is served from.
       - name: Stage release
         run: |
           rm -rf release
           mkdir -p release/bin release/deploy/vps
-          cp target/release/takar-api release/bin/
+          cp target/release/takar-api target/release/alert_job release/bin/
           cp -r apps/web/out release/out
           cp -r migrations release/migrations
           cp deploy/vps/grant.sql release/deploy/vps/
