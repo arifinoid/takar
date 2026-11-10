@@ -13,6 +13,9 @@ pub enum ApiError {
     NotFound(&'static str),
     TooManyRequests(&'static str),
     Conflict(&'static str),
+    /// A conflict that carries structured details, so the client can show
+    /// exactly what blocked the action instead of a bare code.
+    ConflictDetails(&'static str, serde_json::Value),
     ServiceUnavailable,
     /// A dependency outside our control failed: email, WhatsApp, a gateway.
     /// Carries its own code so it is never reported as a database problem.
@@ -22,33 +25,38 @@ pub enum ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        let (status, code) = match self {
-            ApiError::BadRequest(code) => (StatusCode::BAD_REQUEST, code),
-            ApiError::Unauthorized(code) => (StatusCode::UNAUTHORIZED, code),
-            ApiError::Forbidden(code) => (StatusCode::FORBIDDEN, code),
-            ApiError::NotFound(code) => (StatusCode::NOT_FOUND, code),
-            ApiError::TooManyRequests(code) => (StatusCode::TOO_MANY_REQUESTS, code),
-            ApiError::Conflict(code) => (StatusCode::CONFLICT, code),
-            ApiError::ServiceUnavailable => {
-                (StatusCode::SERVICE_UNAVAILABLE, "database_unavailable")
-            }
-            ApiError::Dependency(code) => (StatusCode::SERVICE_UNAVAILABLE, code),
+        let (status, code, details) = match self {
+            ApiError::BadRequest(code) => (StatusCode::BAD_REQUEST, code, None),
+            ApiError::Unauthorized(code) => (StatusCode::UNAUTHORIZED, code, None),
+            ApiError::Forbidden(code) => (StatusCode::FORBIDDEN, code, None),
+            ApiError::NotFound(code) => (StatusCode::NOT_FOUND, code, None),
+            ApiError::TooManyRequests(code) => (StatusCode::TOO_MANY_REQUESTS, code, None),
+            ApiError::Conflict(code) => (StatusCode::CONFLICT, code, None),
+            ApiError::ConflictDetails(code, details) => (StatusCode::CONFLICT, code, Some(details)),
+            ApiError::ServiceUnavailable => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "database_unavailable",
+                None,
+            ),
+            ApiError::Dependency(code) => (StatusCode::SERVICE_UNAVAILABLE, code, None),
             ApiError::Internal(error) => {
                 tracing::error!(%error, "internal error");
-                (StatusCode::INTERNAL_SERVER_ERROR, "internal_error")
+                (StatusCode::INTERNAL_SERVER_ERROR, "internal_error", None)
             }
         };
 
-        (
-            status,
-            Json(json!({
-                "error": {
-                    "code": code,
-                    "message": code.replace('_', " "),
-                }
-            })),
-        )
-            .into_response()
+        let mut body = json!({
+            "error": {
+                "code": code,
+                "message": code.replace('_', " "),
+            }
+        });
+
+        if let Some(details) = details {
+            body["error"]["details"] = details;
+        }
+
+        (status, Json(body)).into_response()
     }
 }
 

@@ -100,6 +100,12 @@ Stock is a batch ledger, not a scalar. `material_batches.qty_remaining` is on-ha
 
 Recipes are versioned, never edited in place. Creating a recipe version deactivates the previous one, and every version keeps its own `recipe_items`; production will point at the exact version it consumed so historical HPP never changes. A partial unique index enforces one active version per product, and the database rejects a recipe whose product belongs to another tenant. `products.current_recipe_id` follows the newest version and is null when the product has no recipe. Products share the `recipe_read`/`recipe_write` permissions — the RBAC matrix has no separate product permission.
 
+### Production
+
+A production order is the only writer of `production_use` movements. It runs in one transaction: load the product's current recipe version, compute each material requirement, allocate batches FEFO with `takar_core::allocate`, and reject the whole run with `409 insufficient_stock` plus the shortage list (D3) before writing anything. On success it decrements `material_batches.qty_remaining`, appends a negative movement and a `production_consumptions` row per batch, and adds `actual_qty` to `products.stock_qty`.
+
+The order stores the `recipe_id` it consumed; creating a newer recipe version never rewrites it. Requirements round up to three decimals to match the batch ledger. `material_cost`, `labor_cost`, `overhead_cost`, and `unit_cost` stay null until P2-05 computes HPP.
+
 ### Tenancy
 
 Every business row carries `tenant_id`. Postgres RLS is the enforcement layer; app-level filters are defense in depth. The JWT carries `user_id` plus the active `tenant_id`, and each request transaction sets `app.tenant_id` and `app.user_id` via `SET LOCAL`. RLS is forced on every account table, and tests must `SET LOCAL ROLE` to a non-owner role because the table owner bypasses policies. Child tables without `tenant_id` (`recipe_items`, `sale_items`, `production_consumptions`, `unit_conversions`) need either their own column or an `EXISTS` policy against the parent — decide before writing policies.

@@ -4354,6 +4354,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "sqlx",
+ "takar-core",
  "takar-db",
  "takar-domain",
  "tokio",

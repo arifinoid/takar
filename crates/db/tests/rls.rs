@@ -496,3 +496,153 @@ async fn products_and_recipe_items_are_scoped_to_the_active_tenant(pool: PgPool)
         "RLS must reject a cross-tenant product"
     );
 }
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn production_is_scoped_to_the_active_tenant(pool: PgPool) {
+    install_app_role(&pool).await;
+
+    let tenant_a = seed_tenant(&pool, "mu").await;
+    let tenant_b = seed_tenant(&pool, "nu").await;
+
+    let (unit_id,): (Uuid,) = sqlx::query_as("select id from units where code = 'kg'")
+        .fetch_one(&pool)
+        .await
+        .expect("unit");
+
+    let mut fixtures = Vec::new();
+
+    for (tenant_id, name) in [
+        (tenant_a.tenant_id, "Kue lapis"),
+        (tenant_b.tenant_id, "Bolu"),
+    ] {
+        let material_id = Uuid::new_v4();
+        sqlx::query(
+            "insert into materials (id, tenant_id, name, base_unit_id)
+             values ($1, $2, $3, $4)",
+        )
+        .bind(material_id)
+        .bind(tenant_id)
+        .bind(format!("{name} flour"))
+        .bind(unit_id)
+        .execute(&pool)
+        .await
+        .expect("material");
+
+        let batch_id = Uuid::new_v4();
+        sqlx::query(
+            "insert into material_batches
+                 (id, tenant_id, material_id, received_at, qty_received, qty_remaining, unit_cost)
+             values ($1, $2, $3, current_date, 10, 10, 1000)",
+        )
+        .bind(batch_id)
+        .bind(tenant_id)
+        .bind(material_id)
+        .execute(&pool)
+        .await
+        .expect("batch");
+
+        let product_id = Uuid::new_v4();
+        sqlx::query("insert into products (id, tenant_id, name) values ($1, $2, $3)")
+            .bind(product_id)
+            .bind(tenant_id)
+            .bind(name)
+            .execute(&pool)
+            .await
+            .expect("product");
+
+        let recipe_id = Uuid::new_v4();
+        sqlx::query(
+            "insert into recipes (id, tenant_id, product_id, version, yield_qty)
+             values ($1, $2, $3, 1, 10)",
+        )
+        .bind(recipe_id)
+        .bind(tenant_id)
+        .bind(product_id)
+        .execute(&pool)
+        .await
+        .expect("recipe");
+
+        let order_id = Uuid::new_v4();
+        sqlx::query(
+            "insert into production_orders
+                 (id, tenant_id, product_id, recipe_id, planned_qty, actual_qty, produced_on)
+             values ($1, $2, $3, $4, 1, 1, current_date)",
+        )
+        .bind(order_id)
+        .bind(tenant_id)
+        .bind(product_id)
+        .bind(recipe_id)
+        .execute(&pool)
+        .await
+        .expect("production order");
+
+        sqlx::query(
+            "insert into production_consumptions
+                 (production_order_id, batch_id, qty, unit_cost)
+             values ($1, $2, 1, 1000)",
+        )
+        .bind(order_id)
+        .bind(batch_id)
+        .execute(&pool)
+        .await
+        .expect("consumption");
+
+        fixtures.push((order_id, batch_id));
+    }
+
+    let (order_a, batch_a) = fixtures[0];
+    let (order_b, _) = fixtures[1];
+
+    let mut tx = begin_as(&pool, tenant_a.tenant_id, tenant_a.owner_id).await;
+
+    let orders: Vec<Uuid> = sqlx::query("select id from production_orders")
+        .fetch_all(&mut *tx)
+        .await
+        .expect("read orders")
+        .iter()
+        .map(|row| row.get("id"))
+        .collect();
+    assert_eq!(orders, vec![order_a], "only the active tenant's orders");
+
+    let consumptions: Vec<Uuid> =
+        sqlx::query("select production_order_id from production_consumptions")
+            .fetch_all(&mut *tx)
+            .await
+            .expect("read consumptions")
+            .iter()
+            .map(|row| row.get("production_order_id"))
+            .collect();
+    assert_eq!(
+        consumptions,
+        vec![order_a],
+        "consumptions follow their order"
+    );
+
+    let cross_order = sqlx::query(
+        "insert into production_orders
+             (tenant_id, product_id, recipe_id, planned_qty, actual_qty, produced_on)
+         values ($1, (select id from products where tenant_id = $1),
+                 (select id from recipes where tenant_id = $1), 1, 1, current_date)",
+    )
+    .bind(tenant_b.tenant_id)
+    .execute(&mut *tx)
+    .await;
+    assert!(
+        cross_order.is_err(),
+        "RLS must reject a cross-tenant production order"
+    );
+
+    let cross_consumption = sqlx::query(
+        "insert into production_consumptions
+             (production_order_id, batch_id, qty, unit_cost)
+         values ($1, $2, 1, 1000)",
+    )
+    .bind(order_b)
+    .bind(batch_a)
+    .execute(&mut *tx)
+    .await;
+    assert!(
+        cross_consumption.is_err(),
+        "a consumption cannot be attached to another tenant's order"
+    );
+}
