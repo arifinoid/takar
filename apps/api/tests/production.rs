@@ -87,6 +87,17 @@ async fn produce(app: &Router, token: &str, body: Value) -> (StatusCode, Value) 
     call(app, "POST", "/production-orders", Some(body), Some(token)).await
 }
 
+async fn preview(app: &Router, token: &str, body: Value) -> (StatusCode, Value) {
+    call(
+        app,
+        "POST",
+        "/production-orders/preview",
+        Some(body),
+        Some(token),
+    )
+    .await
+}
+
 async fn product_row(app: &Router, token: &str, id: Uuid) -> Value {
     let (status, products) = call(app, "GET", "/products", None, Some(token)).await;
     assert_eq!(status, StatusCode::OK, "{products}");
@@ -371,6 +382,16 @@ async fn a_viewer_cannot_produce(pool: PgPool) {
         .await
         .expect("demote owner");
 
+    // A viewer may look at the plan, but cannot record the run.
+    let (status, body) = preview(
+        &app,
+        token,
+        json!({ "product_id": product_id, "qty": "10" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["can_produce"], true);
+
     let (status, body) = produce(
         &app,
         token,
@@ -470,4 +491,104 @@ async fn a_later_purchase_does_not_change_a_past_orders_hpp(pool: PgPool) {
             .await
             .expect("first order cost");
     assert_eq!(recorded, "3150.0000");
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn preview_shows_requirements_batches_and_hpp(pool: PgPool) {
+    let otp = CaptureOtp::default();
+    let app = test_app(pool.clone(), otp.clone());
+    let owner = signup(&app, &otp, "owner@example.test").await;
+    let token = owner["access_token"].as_str().expect("token");
+
+    let product_id = product(&app, token, "Kue lapis").await;
+    let flour = material(&app, token, "Tepung terigu").await;
+    create_recipe(&app, token, product_id, recipe_body(flour, "2.5")).await;
+
+    let near = stocked_batch(&app, token, flour, "1", "2026-06-01", "12000").await;
+    let far = stocked_batch(&app, token, flour, "5", "2026-12-01", "9000").await;
+
+    let (status, body) = preview(
+        &app,
+        token,
+        json!({ "product_id": product_id, "qty": "10" }),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["can_produce"], true);
+    assert_eq!(body["product_name"], "Kue lapis");
+    assert_eq!(body["sell_price"], "15000.00");
+    assert_eq!(body["stock_qty"], "0");
+    assert_eq!(body["recipe_version"], 1);
+    assert_eq!(body["yield_qty"], "10.000");
+    assert_eq!(body["qty"], "10.000");
+    assert_eq!(body["material_cost"], "26625.00");
+    assert_eq!(body["labor_cost"], "0.00");
+    assert_eq!(body["overhead_cost"], "0.00");
+    assert_eq!(body["unit_cost"], "2662.5000");
+    assert_eq!(body["margin"], "12337.50");
+    assert_eq!(body["margin_pct"], "82.25");
+
+    let materials = body["materials"].as_array().expect("materials");
+    assert_eq!(materials.len(), 1);
+    assert_eq!(materials[0]["material_name"], "Tepung terigu");
+    assert_eq!(materials[0]["unit_code"], "kg");
+    assert_eq!(materials[0]["required"], "2.625");
+    assert_eq!(materials[0]["available"], "2.625");
+    assert_eq!(materials[0]["shortfall"], "0.000");
+
+    let batches = materials[0]["batches"].as_array().expect("batches");
+    assert_eq!(batches.len(), 2);
+    assert_eq!(batches[0]["batch_id"], near["id"]);
+    assert_eq!(batches[0]["expires_at"], "2026-06-01");
+    assert_eq!(batches[0]["qty"], "1.000");
+    assert_eq!(batches[0]["unit_cost"], "12000.0000");
+    assert_eq!(batches[1]["batch_id"], far["id"]);
+    assert_eq!(batches[1]["qty"], "1.625");
+    assert_eq!(batches[1]["unit_cost"], "9000.0000");
+
+    // A preview never moves stock.
+    let remaining = batch_remaining(&app, token, flour).await;
+    assert_eq!(remaining.len(), 2);
+
+    let (orders,): (i64,) = sqlx::query_as("select count(*) from production_orders")
+        .fetch_one(&pool)
+        .await
+        .expect("count orders");
+    assert_eq!(orders, 0);
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn preview_blocks_a_short_run_without_a_cost(pool: PgPool) {
+    let otp = CaptureOtp::default();
+    let app = test_app(pool.clone(), otp.clone());
+    let owner = signup(&app, &otp, "owner@example.test").await;
+    let token = owner["access_token"].as_str().expect("token");
+
+    let product_id = product(&app, token, "Kue lapis").await;
+    let flour = material(&app, token, "Tepung terigu").await;
+    create_recipe(&app, token, product_id, recipe_body(flour, "2.5")).await;
+    stocked_batch(&app, token, flour, "1", "2026-12-01", "12000").await;
+
+    let (status, body) = preview(
+        &app,
+        token,
+        json!({ "product_id": product_id, "qty": "10" }),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["can_produce"], false);
+    assert_eq!(body["material_cost"], Value::Null);
+    assert_eq!(body["unit_cost"], Value::Null);
+    assert_eq!(body["margin"], Value::Null);
+
+    let materials = body["materials"].as_array().expect("materials");
+    assert_eq!(materials[0]["required"], "2.625");
+    assert_eq!(materials[0]["available"], "1.000");
+    assert_eq!(materials[0]["shortfall"], "1.625");
+    assert_eq!(
+        materials[0]["batches"].as_array().expect("batches").len(),
+        1
+    );
 }

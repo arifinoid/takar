@@ -91,6 +91,75 @@ export type CreateRecipeRequest = {
   }[];
 };
 
+export type ProductionRequest = {
+  product_id: string;
+  qty: string;
+  produced_on?: string;
+};
+
+export type ProductionBatchPlan = {
+  batch_id: string;
+  expires_at: string | null;
+  qty: string;
+  unit_cost: string;
+};
+
+export type ProductionMaterialPlan = {
+  material_id: string;
+  material_name: string;
+  unit_code: string;
+  required: string;
+  available: string;
+  shortfall: string;
+  batches: ProductionBatchPlan[];
+};
+
+export type ProductionPreview = {
+  product_id: string;
+  product_name: string;
+  sell_price: string;
+  stock_qty: string;
+  recipe_id: string;
+  recipe_version: number;
+  yield_qty: string;
+  qty: string;
+  can_produce: boolean;
+  /** Null when the run is short, because a partial cost would understate HPP. */
+  material_cost: string | null;
+  labor_cost: string | null;
+  overhead_cost: string | null;
+  unit_cost: string | null;
+  margin: string | null;
+  margin_pct: string | null;
+  materials: ProductionMaterialPlan[];
+};
+
+export type ProductionConsumption = {
+  batch_id: string;
+  material_id: string;
+  material_name: string;
+  qty: string;
+  unit_cost: string;
+};
+
+export type ProductionOrder = {
+  id: string;
+  product_id: string;
+  product_name: string;
+  recipe_id: string;
+  recipe_version: number;
+  planned_qty: string;
+  actual_qty: string;
+  material_cost: string;
+  labor_cost: string;
+  overhead_cost: string;
+  unit_cost: string;
+  produced_on: string;
+  status: string;
+  created_at: string;
+  consumptions: ProductionConsumption[];
+};
+
 export type StockLevel = {
   material_id: string;
   name: string;
@@ -434,6 +503,28 @@ export class ApiClient {
 
   getRecipe(token: string, id: string): Promise<Recipe> {
     return this.request<Recipe>(`/recipes/${id}`, { token });
+  }
+
+  previewProduction(
+    token: string,
+    body: ProductionRequest,
+  ): Promise<ProductionPreview> {
+    return this.request<ProductionPreview>("/production-orders/preview", {
+      method: "POST",
+      token,
+      body,
+    });
+  }
+
+  createProduction(
+    token: string,
+    body: ProductionRequest,
+  ): Promise<ProductionOrder> {
+    return this.request<ProductionOrder>("/production-orders", {
+      method: "POST",
+      token,
+      body,
+    });
   }
 
   listOnboardingTemplates(token: string): Promise<OnboardingTemplate[]> {

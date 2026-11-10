@@ -104,6 +104,8 @@ Recipes are versioned, never edited in place. Creating a recipe version deactiva
 
 A production order is the only writer of `production_use` movements. It runs in one transaction: load the product's current recipe version, compute each material requirement, allocate batches FEFO with `takar_core::allocate`, and reject the whole run with `409 insufficient_stock` plus the shortage list (D3) before writing anything. On success it decrements `material_batches.qty_remaining`, appends a negative movement and a `production_consumptions` row per batch, and adds `actual_qty` to `products.stock_qty`.
 
+`POST /production-orders/preview` runs the same plan read-only and returns each material's requirement, the batches FEFO would take, and the HPP with margin. It returns null cost fields when any material is short, because a partial allocation would understate the HPP.
+
 The order stores the `recipe_id` it consumed; creating a newer recipe version never rewrites it. Requirements round up to three decimals to match the batch ledger.
 
 Cost is snapshotted in the same transaction: `material_cost` is the sum of `production_consumptions.qty × unit_cost`, and `unit_cost` is the total divided by `actual_qty` (four decimals, D7), so a later purchase at a different price never changes a past HPP. `labor_cost` and `overhead_cost` stay zero until a tenant labor rate exists (P2-08); `takar_core::production_cost` already accepts both components.
