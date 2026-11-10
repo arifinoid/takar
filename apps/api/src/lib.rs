@@ -75,10 +75,13 @@ async fn openapi() -> Json<utoipa::openapi::OpenApi> {
 }
 
 fn cors() -> CorsLayer {
+    // Android serves the Tauri WebView from https://tauri.localhost, Windows
+    // from http://tauri.localhost, and desktop from tauri://localhost.
     let origins: Vec<HeaderValue> = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://takar.arifinoid.web.id",
+        "https://tauri.localhost",
         "http://tauri.localhost",
         "tauri://localhost",
     ]
