@@ -33,13 +33,19 @@ pub struct PendingAlert {
 }
 
 impl PendingAlert {
-    /// The contact for this alert's channel. Owners are the only recipients
-    /// the product knows about until tenant settings exist.
-    pub fn recipient(&self) -> Option<&str> {
-        match self.channel.as_str() {
+    /// The owner contact for a channel, if the tenant has one. Owners are the
+    /// only recipients the product knows about until tenant settings exist.
+    pub fn contact(&self, channel: &str) -> Option<&str> {
+        match channel {
             "email" => self.owner_email.as_deref(),
-            _ => self.owner_phone.as_deref(),
+            "whatsapp" => self.owner_phone.as_deref(),
+            _ => None,
         }
+    }
+
+    /// The contact for this alert's rule channel.
+    pub fn recipient(&self) -> Option<&str> {
+        self.contact(&self.channel)
     }
 }
 
