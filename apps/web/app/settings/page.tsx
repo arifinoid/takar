@@ -13,12 +13,16 @@ import { AppShell } from "../app-shell";
 
 type Load = { status: "loading" } | { status: "ready" } | { status: "error" };
 
+const MIN_WINDOW_DAYS = 1;
+const MAX_WINDOW_DAYS = 365;
+
 export default function SettingsPage() {
   const { t } = useI18n();
   const { state: session, reload: reloadSession, signOut } = useMe();
 
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [rate, setRate] = useState("");
+  const [windowDays, setWindowDays] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -38,6 +42,7 @@ export default function SettingsPage() {
         if (!active) return;
         setLoad({ status: "ready" });
         setRate(trimDecimal(settings.labor_rate_per_hour));
+        setWindowDays(String(settings.usage_window_days));
       })
       .catch(() => {
         if (active) setLoad({ status: "error" });
@@ -73,18 +78,36 @@ export default function SettingsPage() {
       return;
     }
 
+    const days = Number(windowDays);
+
+    if (
+      !Number.isInteger(days) ||
+      days < MIN_WINDOW_DAYS ||
+      days > MAX_WINDOW_DAYS
+    ) {
+      setError(t.settings.errors.invalidWindow);
+      return;
+    }
+
     setSaving(true);
 
     try {
       const saved = await api.updateSettings(token, {
         labor_rate_per_hour: value,
+        usage_window_days: days,
       });
 
       setRate(trimDecimal(saved.labor_rate_per_hour));
+      setWindowDays(String(saved.usage_window_days));
       setNotice(t.settings.saved);
     } catch (cause) {
       if (cause instanceof ApiError && cause.code === "invalid_labor_rate") {
         setError(t.settings.errors.invalidRate);
+      } else if (
+        cause instanceof ApiError &&
+        cause.code === "invalid_usage_window"
+      ) {
+        setError(t.settings.errors.invalidWindow);
       } else if (
         cause instanceof ApiError &&
         cause.code === "permission_denied"
@@ -153,13 +176,13 @@ export default function SettingsPage() {
             )}
 
             {load.status === "ready" && (
-              <section className="settings__card">
-                <div className="settings__intro">
-                  <h2>{t.settings.labor.title}</h2>
-                  <p>{t.settings.labor.body}</p>
-                </div>
+              <form className="settings__form" onSubmit={save}>
+                <section className="settings__card">
+                  <div className="settings__intro">
+                    <h2>{t.settings.labor.title}</h2>
+                    <p>{t.settings.labor.body}</p>
+                  </div>
 
-                <form className="settings__form" onSubmit={save}>
                   <label className="field">
                     <span className="field__label">
                       {t.settings.labor.label}
@@ -181,26 +204,55 @@ export default function SettingsPage() {
                         : t.settings.labor.readOnly}
                     </span>
                   </label>
+                </section>
 
-                  {error && (
-                    <p className="form__error" role="alert">
-                      {error}
-                    </p>
-                  )}
+                <section className="settings__card">
+                  <div className="settings__intro">
+                    <h2>{t.settings.usage.title}</h2>
+                    <p>{t.settings.usage.body}</p>
+                  </div>
 
-                  {canManage && (
-                    <div className="settings__actions">
-                      <button
-                        className="btn btn--primary"
-                        type="submit"
-                        disabled={saving}
-                      >
-                        {saving ? t.settings.labor.saving : t.settings.labor.save}
-                      </button>
-                    </div>
-                  )}
-                </form>
-              </section>
+                  <label className="field">
+                    <span className="field__label">
+                      {t.settings.usage.label}
+                    </span>
+                    <input
+                      className="field__input"
+                      type="number"
+                      min={MIN_WINDOW_DAYS}
+                      max={MAX_WINDOW_DAYS}
+                      step="1"
+                      value={windowDays}
+                      onChange={(event) => setWindowDays(event.target.value)}
+                      readOnly={!canManage}
+                      required
+                    />
+                    <span className="field__hint">
+                      {canManage
+                        ? t.settings.usage.hint
+                        : t.settings.labor.readOnly}
+                    </span>
+                  </label>
+                </section>
+
+                {error && (
+                  <p className="form__error" role="alert">
+                    {error}
+                  </p>
+                )}
+
+                {canManage && (
+                  <div className="settings__actions">
+                    <button
+                      className="btn btn--primary"
+                      type="submit"
+                      disabled={saving}
+                    >
+                      {saving ? t.settings.saving : t.settings.save}
+                    </button>
+                  </div>
+                )}
+              </form>
             )}
           </div>
         </AppShell>

@@ -3054,7 +3054,10 @@ h1 {
 .settings__form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+}
+
+.settings__form .field {
   max-width: 320px;
 }
 
@@ -3337,10 +3340,6 @@ h1 {
 @media (max-width: 860px) {
   .settings__header h1 {
     font-size: 20px;
-  }
-
-  .settings__form {
-    max-width: none;
   }
 }
 

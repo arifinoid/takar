@@ -244,3 +244,109 @@ async fn a_viewer_can_read_recommendations(pool: PgPool) {
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["items"].as_array().expect("items").len(), 1);
 }
+
+async fn set_window(app: &Router, token: &str, days: i32) {
+    let (status, body) = call(
+        app,
+        "PUT",
+        "/settings",
+        Some(json!({ "usage_window_days": days })),
+        Some(token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn the_tenant_window_decides_the_average(pool: PgPool) {
+    let otp = CaptureOtp::default();
+    let app = test_app(pool.clone(), otp.clone());
+    let owner = signup(&app, &otp, "owner@example.test").await;
+    let token = owner["access_token"].as_str().expect("token");
+
+    let supplier_id = supplier(&app, token, 1).await;
+    let flour = material(
+        &app,
+        token,
+        json!({
+            "name": "Tepung terigu",
+            "min_stock": "0",
+            "default_supplier_id": supplier_id,
+        }),
+    )
+    .await;
+
+    // 30 kg used now: 1 a day over 30 days, 3 a day over 10.
+    stock(&app, token, flour, "30").await;
+    waste(&app, token, flour, "30").await;
+
+    let (status, body) = recommendations(&app, token).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["window_days"], 30);
+    assert_eq!(body["items"][0]["average_daily_usage"], "1.000");
+    assert_eq!(body["items"][0]["recommended_qty"], "1.000");
+
+    set_window(&app, token, 10).await;
+
+    let (status, body) = recommendations(&app, token).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["window_days"], 10);
+    assert_eq!(body["items"][0]["average_daily_usage"], "3.000");
+    assert_eq!(body["items"][0]["recommended_qty"], "3.000");
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn movements_older_than_the_window_do_not_count(pool: PgPool) {
+    let otp = CaptureOtp::default();
+    let app = test_app(pool.clone(), otp.clone());
+    let owner = signup(&app, &otp, "owner@example.test").await;
+    let token = owner["access_token"].as_str().expect("token");
+    let tenant_id = common::tenant_of(&app, token).await;
+
+    let flour = material(
+        &app,
+        token,
+        json!({ "name": "Tepung terigu", "min_stock": "15" }),
+    )
+    .await;
+
+    stock(&app, token, flour, "30").await;
+
+    // A waste movement 20 days ago: inside the default window, outside a week.
+    let (batch_id,): (Uuid,) =
+        sqlx::query_as("select id from material_batches where material_id = $1 and tenant_id = $2")
+            .bind(flour)
+            .bind(tenant_id)
+            .fetch_one(&pool)
+            .await
+            .expect("batch");
+
+    sqlx::query(
+        "insert into stock_movements (tenant_id, batch_id, type, qty, created_at)
+         values ($1, $2, 'waste', -20, now() - interval '20 days')",
+    )
+    .bind(tenant_id)
+    .bind(batch_id)
+    .execute(&pool)
+    .await
+    .expect("movement");
+
+    sqlx::query("update material_batches set qty_remaining = qty_remaining - 20 where id = $1")
+        .bind(batch_id)
+        .execute(&pool)
+        .await
+        .expect("decrement batch");
+
+    let (status, body) = recommendations(&app, token).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["items"][0]["insufficient_history"], false);
+    assert_eq!(body["items"][0]["average_daily_usage"], "0.6667");
+    assert_eq!(body["items"][0]["recommended_qty"], "5.000");
+
+    set_window(&app, token, 7).await;
+
+    let (status, body) = recommendations(&app, token).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["items"][0]["insufficient_history"], true);
+    assert_eq!(body["items"][0]["average_daily_usage"], "0");
+}

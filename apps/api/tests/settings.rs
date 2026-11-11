@@ -96,3 +96,66 @@ async fn the_rate_belongs_to_one_tenant(pool: PgPool) {
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["labor_rate_per_hour"], "0");
 }
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn a_new_tenant_starts_with_a_thirty_day_window(pool: PgPool) {
+    let otp = CaptureOtp::default();
+    let app = test_app(pool.clone(), otp.clone());
+    let owner = signup(&app, &otp, "owner@example.test").await;
+    let token = owner["access_token"].as_str().expect("token");
+
+    let (status, body) = get_settings(&app, token).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["usage_window_days"], 30);
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn a_partial_update_keeps_the_other_field(pool: PgPool) {
+    let otp = CaptureOtp::default();
+    let app = test_app(pool.clone(), otp.clone());
+    let owner = signup(&app, &otp, "owner@example.test").await;
+    let token = owner["access_token"].as_str().expect("token");
+
+    let (status, body) = call(
+        &app,
+        "PUT",
+        "/settings",
+        Some(json!({ "usage_window_days": 14 })),
+        Some(token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["usage_window_days"], 14);
+    assert_eq!(body["labor_rate_per_hour"], "0");
+
+    let (status, body) = put_rate(&app, token, "50000").await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["labor_rate_per_hour"], "50000.00");
+    assert_eq!(body["usage_window_days"], 14);
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn a_window_outside_the_range_is_rejected(pool: PgPool) {
+    let otp = CaptureOtp::default();
+    let app = test_app(pool.clone(), otp.clone());
+    let owner = signup(&app, &otp, "owner@example.test").await;
+    let token = owner["access_token"].as_str().expect("token");
+
+    for window in ["0", "366"] {
+        let (status, body) = call(
+            &app,
+            "PUT",
+            "/settings",
+            Some(json!({ "usage_window_days": window.parse::<i32>().expect("days") })),
+            Some(token),
+        )
+        .await;
+
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+        assert_eq!(body["error"]["code"], "invalid_usage_window");
+    }
+
+    let (status, body) = get_settings(&app, token).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["usage_window_days"], 30);
+}
