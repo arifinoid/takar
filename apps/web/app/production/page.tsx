@@ -193,6 +193,9 @@ export default function ProductionPage() {
       ? {
           unit: preview.unit_cost,
           material: preview.material_cost,
+          labor: preview.labor_cost,
+          laborMinutes: preview.labor_minutes,
+          laborRate: preview.labor_rate_per_hour,
           margin: preview.margin,
           marginPct: preview.margin_pct,
           sellPrice: preview.sell_price,
@@ -452,6 +455,25 @@ export default function ProductionPage() {
                           <strong>
                             {formatMoney(Number(cost.material), locale)}
                           </strong>
+                        </div>
+                        <div className="cost">
+                          <span>{t.production.plan.laborCost}</span>
+                          <strong>
+                            {formatMoney(Number(cost.labor), locale)}
+                          </strong>
+                          {Number(cost.labor) > 0 ? (
+                            <em>
+                              {fill(t.production.plan.laborDetail, {
+                                minutes: cost.laborMinutes,
+                                rate: formatMoney(
+                                  Number(cost.laborRate),
+                                  locale,
+                                ),
+                              })}
+                            </em>
+                          ) : (
+                            <em>{t.production.plan.noLaborRate}</em>
+                          )}
                         </div>
                       </div>
                     )}

@@ -21,7 +21,7 @@ import { useI18n } from "@/lib/i18n";
 
 import { LocaleSwitch } from "./locale-switch";
 
-type Active = "overview" | "stock" | "production" | "products";
+type Active = "overview" | "stock" | "production" | "products" | "settings";
 
 type Item = {
   key: string;
@@ -88,7 +88,12 @@ export function AppShell({ me, active, onSignOut, children }: Props) {
       items: [
         { key: "alerts", label: t.nav.alerts, icon: MessageCircle },
         { key: "team", label: t.nav.team, icon: Users },
-        { key: "settings", label: t.nav.settings, icon: Settings },
+        {
+          key: "settings",
+          label: t.nav.settings,
+          icon: Settings,
+          href: "/settings",
+        },
       ],
     },
   ];

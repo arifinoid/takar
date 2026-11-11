@@ -337,6 +337,29 @@ export const id: Dictionary = {
       forbidden: "Kamu tidak punya izin mengubah produk atau resep.",
     },
   },
+  settings: {
+    title: "Pengaturan",
+    subtitle:
+      "Nilai dasar yang memengaruhi biaya dan cara aplikasi bekerja untuk usaha ini.",
+    loading: "Memuat pengaturan…",
+    error: "Gagal memuat pengaturan.",
+    retry: "Coba lagi",
+    saved: "Tarif tenaga kerja tersimpan.",
+    labor: {
+      title: "Tenaga kerja produksi",
+      body: "Resep mencatat berapa menit satu batch dikerjakan. Atur biaya satu jam tenaga kerja, lalu produksi menambahkannya ke HPP setiap proses baru.",
+      label: "Tarif tenaga kerja per jam",
+      hint: "Dalam rupiah. Biarkan 0 kalau tenaga kerja belum ingin dihitung di HPP.",
+      readOnly: "Hanya owner atau admin yang bisa mengubah tarif.",
+      save: "Simpan tarif",
+      saving: "Menyimpan…",
+    },
+    errors: {
+      invalidRate: "Tarif tidak boleh negatif.",
+      forbidden: "Kamu tidak punya izin mengubah pengaturan.",
+      generic: "Ada yang salah. Coba lagi.",
+    },
+  },
   production: {
     title: "Produksi & HPP",
     subtitle:
@@ -370,6 +393,9 @@ export const id: Dictionary = {
       margin: "Margin",
       marginPct: "Margin {pct}",
       materialCost: "Biaya bahan",
+      laborCost: "Biaya tenaga kerja",
+      laborDetail: "{minutes} menit @ {rate}/jam",
+      noLaborRate: "Tarif tenaga kerja belum diatur",
       readyTitle: "Siap diproduksi",
       readyBody:
         "Semua bahan tercukupi. Mencatat produksi akan mengurangi stok dan menyimpan HPP.",

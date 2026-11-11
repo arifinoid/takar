@@ -338,6 +338,29 @@ export const en = {
       forbidden: "You do not have permission to change products or recipes.",
     },
   },
+  settings: {
+    title: "Settings",
+    subtitle:
+      "Defaults that shape cost and how the app behaves for this business.",
+    loading: "Loading settings…",
+    error: "Could not load settings.",
+    retry: "Try again",
+    saved: "Labor rate saved.",
+    labor: {
+      title: "Production labor",
+      body: "A recipe records how many minutes one batch takes. Set what an hour of labor costs and production adds it to the HPP of every new run.",
+      label: "Labor rate per hour",
+      hint: "In rupiah. Leave it at 0 to keep labor out of the HPP for now.",
+      readOnly: "Only an owner or admin can change the rate.",
+      save: "Save rate",
+      saving: "Saving…",
+    },
+    errors: {
+      invalidRate: "The rate cannot be negative.",
+      forbidden: "You do not have permission to change settings.",
+      generic: "Something went wrong. Try again.",
+    },
+  },
   production: {
     title: "Production & HPP",
     subtitle: "Plan a batch, see which batches FEFO will use, and record the run.",
@@ -370,6 +393,9 @@ export const en = {
       margin: "Margin",
       marginPct: "{pct} margin",
       materialCost: "Material cost",
+      laborCost: "Labor cost",
+      laborDetail: "{minutes} min at {rate}/hour",
+      noLaborRate: "No labor rate set",
       readyTitle: "Ready to produce",
       readyBody:
         "Every material is covered. Recording the run moves stock and snapshots the HPP.",

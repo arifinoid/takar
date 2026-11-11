@@ -108,7 +108,11 @@ A production order is the only writer of `production_use` movements. It runs in 
 
 The order stores the `recipe_id` it consumed; creating a newer recipe version never rewrites it. Requirements round up to three decimals to match the batch ledger.
 
-Cost is snapshotted in the same transaction: `material_cost` is the sum of `production_consumptions.qty × unit_cost`, and `unit_cost` is the total divided by `actual_qty` (four decimals, D7), so a later purchase at a different price never changes a past HPP. `labor_cost` and `overhead_cost` stay zero until a tenant labor rate exists (P2-08); `takar_core::production_cost` already accepts both components.
+Cost is snapshotted in the same transaction: `material_cost` is the sum of `production_consumptions.qty × unit_cost`, and `unit_cost` is the total divided by `actual_qty` (four decimals, D7), so a later purchase at a different price never changes a past HPP.
+
+Labor is priced from `tenants.labor_rate_per_hour` (set through `PUT /settings`): a recipe's `labor_minutes` covers one batch, so a run of `qty` units costs `rate × minutes / 60 × (qty ÷ yield_qty)`. The rate is read once per plan and stored in the order, so changing it never rewrites history. A zero rate means labor is left out of the HPP. `overhead_cost` stays zero until a tenant overhead input exists; `takar_core::production_cost` already accepts the component.
+
+`/settings` is readable by any member because it explains the HPP they see; `PUT /settings` requires `tenant_manage` (owner, admin).
 
 ### Tenancy
 
