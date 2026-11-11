@@ -122,6 +122,9 @@ export type ProductionPreview = {
   recipe_id: string;
   recipe_version: number;
   yield_qty: string;
+  /** Labor minutes for one batch, and the tenant rate that prices them. */
+  labor_minutes: number;
+  labor_rate_per_hour: string;
   qty: string;
   can_produce: boolean;
   /** Null when the run is short, because a partial cost would understate HPP. */
@@ -132,6 +135,10 @@ export type ProductionPreview = {
   margin: string | null;
   margin_pct: string | null;
   materials: ProductionMaterialPlan[];
+};
+
+export type TenantSettings = {
+  labor_rate_per_hour: string;
 };
 
 export type ProductionConsumption = {
@@ -439,6 +446,21 @@ export class ApiClient {
 
   me(token: string): Promise<MeResponse> {
     return this.request<MeResponse>("/me", { token });
+  }
+
+  getSettings(token: string): Promise<TenantSettings> {
+    return this.request<TenantSettings>("/settings", { token });
+  }
+
+  updateSettings(
+    token: string,
+    body: TenantSettings,
+  ): Promise<TenantSettings> {
+    return this.request<TenantSettings>("/settings", {
+      method: "PUT",
+      token,
+      body,
+    });
   }
 
   listUnits(token: string): Promise<Unit[]> {

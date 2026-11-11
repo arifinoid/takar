@@ -592,3 +592,129 @@ async fn preview_blocks_a_short_run_without_a_cost(pool: PgPool) {
         1
     );
 }
+
+async fn set_labor_rate(app: &Router, token: &str, rate: &str) -> Value {
+    let (status, body) = call(
+        app,
+        "PUT",
+        "/settings",
+        Some(json!({ "labor_rate_per_hour": rate })),
+        Some(token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+
+    body
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn labor_is_priced_from_the_tenant_rate(pool: PgPool) {
+    let otp = CaptureOtp::default();
+    let app = test_app(pool.clone(), otp.clone());
+    let owner = signup(&app, &otp, "owner@example.test").await;
+    let token = owner["access_token"].as_str().expect("token");
+
+    let product_id = product(&app, token, "Kue lapis").await;
+    let flour = material(&app, token, "Tepung terigu").await;
+    create_recipe(&app, token, product_id, recipe_body(flour, "2.5")).await;
+    stocked_batch(&app, token, flour, "5", "2026-12-01", "12000").await;
+    set_labor_rate(&app, token, "60000").await;
+
+    // 30 minutes at 60 000 an hour is 30 000 for one batch, and one batch
+    // yields the 10 units produced.
+    let (status, preview) = preview(
+        &app,
+        token,
+        json!({ "product_id": product_id, "qty": "10" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{preview}");
+    assert_eq!(preview["labor_minutes"], 30);
+    assert_eq!(preview["labor_rate_per_hour"], "60000.00");
+    assert_eq!(preview["material_cost"], "31500.00");
+    assert_eq!(preview["labor_cost"], "30000.00");
+    assert_eq!(preview["unit_cost"], "6150.0000");
+
+    let (status, order) = produce(
+        &app,
+        token,
+        json!({ "product_id": product_id, "qty": "10", "produced_on": "2026-11-10" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{order}");
+    assert_eq!(order["material_cost"], "31500.00");
+    assert_eq!(order["labor_cost"], "30000.00");
+    assert_eq!(order["unit_cost"], "6150.0000");
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn labor_follows_the_number_of_batches(pool: PgPool) {
+    let otp = CaptureOtp::default();
+    let app = test_app(pool.clone(), otp.clone());
+    let owner = signup(&app, &otp, "owner@example.test").await;
+    let token = owner["access_token"].as_str().expect("token");
+
+    let product_id = product(&app, token, "Kue lapis").await;
+    let flour = material(&app, token, "Tepung terigu").await;
+    create_recipe(&app, token, product_id, recipe_body(flour, "2.5")).await;
+    stocked_batch(&app, token, flour, "5", "2026-12-01", "12000").await;
+    set_labor_rate(&app, token, "60000").await;
+
+    // Half a batch: 1.3125 kg of flour rounds up to 1.313, and labor is
+    // 15 minutes at 60 000 an hour.
+    let (status, order) = produce(
+        &app,
+        token,
+        json!({ "product_id": product_id, "qty": "5", "produced_on": "2026-11-10" }),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::CREATED, "{order}");
+    assert_eq!(order["material_cost"], "15756.00");
+    assert_eq!(order["labor_cost"], "15000.00");
+    assert_eq!(order["unit_cost"], "6151.2000");
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn a_rate_change_does_not_rewrite_a_past_order(pool: PgPool) {
+    let otp = CaptureOtp::default();
+    let app = test_app(pool.clone(), otp.clone());
+    let owner = signup(&app, &otp, "owner@example.test").await;
+    let token = owner["access_token"].as_str().expect("token");
+
+    let product_id = product(&app, token, "Kue lapis").await;
+    let flour = material(&app, token, "Tepung terigu").await;
+    create_recipe(&app, token, product_id, recipe_body(flour, "2.5")).await;
+    stocked_batch(&app, token, flour, "5", "2026-12-01", "12000").await;
+    set_labor_rate(&app, token, "60000").await;
+
+    let (status, order) = produce(
+        &app,
+        token,
+        json!({ "product_id": product_id, "qty": "10", "produced_on": "2026-11-10" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{order}");
+    let order_id = order["id"].as_str().expect("order id");
+
+    set_labor_rate(&app, token, "120000").await;
+
+    let (labor_cost, unit_cost): (String, String) = sqlx::query_as(
+        "select labor_cost::text, unit_cost::text
+         from production_orders where id = $1",
+    )
+    .bind(order_id.parse::<Uuid>().expect("uuid"))
+    .fetch_one(&pool)
+    .await
+    .expect("order row");
+
+    assert_eq!(labor_cost, "30000.00");
+    assert_eq!(unit_cost, "6150.0000");
+
+    // The next run prices with the new rate, so only history is frozen. Half
+    // a batch at 120 000 an hour is 30 000.
+    let (status, preview) =
+        preview(&app, token, json!({ "product_id": product_id, "qty": "5" })).await;
+    assert_eq!(status, StatusCode::OK, "{preview}");
+    assert_eq!(preview["labor_cost"], "30000.00");
+}

@@ -2215,7 +2215,7 @@ h1 {
 .costs {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
 .cost {
@@ -2756,6 +2756,62 @@ h1 {
   margin-top: 2px;
 }
 
+/* Settings page ------------------------------------------------------ */
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 720px;
+}
+
+.settings__header h1 {
+  font-size: 23px;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.settings__sub {
+  color: var(--ink2);
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.settings__card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px;
+}
+
+.settings__intro h2 {
+  font-size: 14px;
+  margin: 0;
+}
+
+.settings__intro p {
+  color: var(--ink2);
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 6px 0 0;
+  max-width: 60ch;
+}
+
+.settings__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 320px;
+}
+
+.settings__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* Responsive --------------------------------------------------------- */
 
 @media (max-width: 960px) {
@@ -3023,6 +3079,17 @@ h1 {
 
   .recipe-form__row select {
     grid-column: 1 / -1;
+  }
+}
+
+
+@media (max-width: 860px) {
+  .settings__header h1 {
+    font-size: 20px;
+  }
+
+  .settings__form {
+    max-width: none;
   }
 }
 

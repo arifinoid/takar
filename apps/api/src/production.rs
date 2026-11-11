@@ -74,6 +74,9 @@ pub struct ProductionPreviewView {
     pub recipe_id: Uuid,
     pub recipe_version: i32,
     pub yield_qty: Decimal,
+    /// Minutes of labor for one batch, and the tenant rate that prices it.
+    pub labor_minutes: i32,
+    pub labor_rate_per_hour: Decimal,
     pub qty: Decimal,
     /// False when any material is short; the UI must not allow the run.
     pub can_produce: bool,
@@ -127,6 +130,7 @@ type ProductRow = (
     Option<Uuid>,
     Option<i32>,
     Option<Decimal>,
+    Option<i32>,
 );
 type ItemRow = (Uuid, String, String, Decimal, Decimal);
 type BatchRow = (Uuid, NaiveDate, Option<NaiveDate>, Decimal, Decimal);
@@ -157,6 +161,8 @@ struct PlannedOrder {
     recipe_id: Uuid,
     recipe_version: i32,
     yield_qty: Decimal,
+    labor_minutes: i32,
+    labor_rate_per_hour: Decimal,
     materials: Vec<MaterialPlan>,
     shortages: Vec<ShortageView>,
 }
@@ -191,14 +197,14 @@ async fn plan_order(
 ) -> Result<PlannedOrder, ApiError> {
     let product_sql = if lock {
         "select p.id, p.name, p.sell_price, p.stock_qty,
-                p.current_recipe_id, r.version, r.yield_qty
+                p.current_recipe_id, r.version, r.yield_qty, r.labor_minutes
          from products p
          left join recipes r on r.id = p.current_recipe_id
          where p.id = $1 and p.tenant_id = $2 and p.is_active
          for update of p"
     } else {
         "select p.id, p.name, p.sell_price, p.stock_qty,
-                p.current_recipe_id, r.version, r.yield_qty
+                p.current_recipe_id, r.version, r.yield_qty, r.labor_minutes
          from products p
          left join recipes r on r.id = p.current_recipe_id
          where p.id = $1 and p.tenant_id = $2 and p.is_active"
@@ -210,14 +216,36 @@ async fn plan_order(
         .fetch_optional(&mut **tx)
         .await?;
 
-    let (_, product_name, sell_price, stock_qty, current_recipe_id, current_version, current_yield) =
-        product.ok_or(ApiError::NotFound("product_not_found"))?;
+    let (
+        _,
+        product_name,
+        sell_price,
+        stock_qty,
+        current_recipe_id,
+        current_version,
+        current_yield,
+        current_labor_minutes,
+    ) = product.ok_or(ApiError::NotFound("product_not_found"))?;
 
-    let (recipe_id, recipe_version, yield_qty) =
-        match (current_recipe_id, current_version, current_yield) {
-            (Some(recipe_id), Some(version), Some(yield_qty)) => (recipe_id, version, yield_qty),
-            _ => return Err(ApiError::Conflict("recipe_required")),
-        };
+    let (recipe_id, recipe_version, yield_qty, labor_minutes) = match (
+        current_recipe_id,
+        current_version,
+        current_yield,
+        current_labor_minutes,
+    ) {
+        (Some(recipe_id), Some(version), Some(yield_qty), Some(labor_minutes)) => {
+            (recipe_id, version, yield_qty, labor_minutes)
+        }
+        _ => return Err(ApiError::Conflict("recipe_required")),
+    };
+
+    // The rate belongs to the tenant, so it is read once per plan. Zero means
+    // no rate is configured and the run snapshots material cost only.
+    let (labor_rate_per_hour,): (Decimal,) =
+        sqlx::query_as("select labor_rate_per_hour from tenants where id = $1")
+            .bind(tenant_id)
+            .fetch_one(&mut **tx)
+            .await?;
 
     // Material order is part of the lock order: every run locks batches in
     // material id order, so two runs sharing materials cannot deadlock.
@@ -324,13 +352,18 @@ async fn plan_order(
         recipe_id,
         recipe_version,
         yield_qty,
+        labor_minutes,
+        labor_rate_per_hour,
         materials,
         shortages,
     })
 }
 
-/// Snapshot cost from the plan. Labor and overhead stay zero until a tenant
-/// labor rate exists (P2-08); the core already accepts both components.
+/// Snapshot cost from the plan.
+///
+/// A recipe's `labor_minutes` covers one batch, so a run of `qty` units takes
+/// `qty / yield_qty` batches of labor. Overhead stays zero until a tenant
+/// overhead input exists; the core already accepts the component.
 fn order_cost(planned: &PlannedOrder, production_qty: Decimal) -> Result<ProductionCost, ApiError> {
     let consumption_costs: Vec<Consumption> = planned
         .materials
@@ -343,9 +376,13 @@ fn order_cost(planned: &PlannedOrder, production_qty: Decimal) -> Result<Product
         })
         .collect();
 
+    let hours = Decimal::from(planned.labor_minutes) / Decimal::from(60);
+    let batches = production_qty / planned.yield_qty;
+    let labor_cost = planned.labor_rate_per_hour * hours * batches;
+
     takar_core::production_cost(
         &consumption_costs,
-        Decimal::ZERO,
+        labor_cost,
         Decimal::ZERO,
         production_qty,
     )
@@ -425,6 +462,8 @@ pub async fn preview_order(
         recipe_id: planned.recipe_id,
         recipe_version: planned.recipe_version,
         yield_qty: planned.yield_qty,
+        labor_minutes: planned.labor_minutes,
+        labor_rate_per_hour: planned.labor_rate_per_hour,
         qty: production_qty,
         can_produce,
         material_cost: cost.map(|cost| at_scale(cost.material_cost, 2)),

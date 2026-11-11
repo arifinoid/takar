@@ -11,6 +11,7 @@ pub mod onboarding;
 pub mod production;
 pub mod products;
 pub mod recipes;
+pub mod settings;
 pub mod stock;
 
 use std::sync::Arc;
@@ -60,6 +61,7 @@ pub fn router(state: AppState) -> Router {
         .merge(production::routes())
         .merge(products::routes())
         .merge(recipes::routes())
+        .merge(settings::routes())
         .merge(stock::routes())
         .with_state(state)
         .layer(cors())
