@@ -21,7 +21,13 @@ import { useI18n } from "@/lib/i18n";
 
 import { LocaleSwitch } from "./locale-switch";
 
-type Active = "overview" | "stock" | "production" | "products" | "settings";
+type Active =
+  | "overview"
+  | "stock"
+  | "production"
+  | "products"
+  | "purchasing"
+  | "settings";
 
 type Item = {
   key: string;
@@ -79,7 +85,12 @@ export function AppShell({ me, active, onSignOut, children }: Props) {
       label: t.nav.sales,
       items: [
         { key: "pos", label: t.nav.pos, icon: ShoppingCart },
-        { key: "purchasing", label: t.nav.purchasing, icon: Truck },
+        {
+          key: "purchasing",
+          label: t.nav.purchasing,
+          icon: Truck,
+          href: "/purchasing",
+        },
         { key: "reports", label: t.nav.reports, icon: BarChart3 },
       ],
     },

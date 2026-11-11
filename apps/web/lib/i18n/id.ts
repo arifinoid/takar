@@ -360,6 +360,32 @@ export const id: Dictionary = {
       generic: "Ada yang salah. Coba lagi.",
     },
   },
+  purchasing: {
+    title: "Belanja",
+    subtitle: "{count} bahan perlu dibeli · pemakaian dirata-rata {days} hari terakhir",
+    loading: "Memuat rekomendasi…",
+    error: "Gagal memuat rekomendasi.",
+    retry: "Coba lagi",
+    estimated: "Perkiraan biaya",
+    explain:
+      "Setiap jumlah menutup lead time supplier ditambah stok minimum, memakai pemakaian keluar {days} hari terakhir.",
+    buy: "Beli",
+    onHand: "Stok",
+    target: "Target",
+    dailyUsage: "Per hari",
+    lead: "{supplier} · lead time {days} hari",
+    leadImmediate: "{supplier} · lead time hari ini",
+    noSupplier: "Supplier belum diatur",
+    empty: {
+      title: "Tidak ada yang perlu dibeli",
+      body: "Semua bahan sudah menutup lead time dan stok minimum. Cek lagi setelah produksi atau saat supplier berubah.",
+    },
+    flags: {
+      noHistory: "Belum ada riwayat pemakaian",
+      shelfLife: "Dibatasi umur simpan {days} hari",
+      noSupplier: "Supplier belum diatur",
+    },
+  },
   production: {
     title: "Produksi & HPP",
     subtitle:

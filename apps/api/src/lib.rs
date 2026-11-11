@@ -10,6 +10,7 @@ pub mod notify;
 pub mod onboarding;
 pub mod production;
 pub mod products;
+pub mod purchasing;
 pub mod recipes;
 pub mod settings;
 pub mod stock;
@@ -61,6 +62,7 @@ pub fn router(state: AppState) -> Router {
         .merge(onboarding::routes())
         .merge(production::routes())
         .merge(products::routes())
+        .merge(purchasing::routes())
         .merge(recipes::routes())
         .merge(settings::routes())
         .merge(stock::routes())

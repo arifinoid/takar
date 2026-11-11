@@ -114,6 +114,14 @@ Labor is priced from `tenants.labor_rate_per_hour` (set through `PUT /settings`)
 
 `/settings` is readable by any member because it explains the HPP they see; `PUT /settings` requires `tenant_manage` (owner, admin).
 
+### Purchasing
+
+`GET /purchasing/recommendations` turns the movement ledger into a shopping list. Usage is the sum of `production_use`, `waste`, and `expired` movements in the last 30 days, averaged per day; purchases and adjustments are excluded because neither says anything about consumption.
+
+`takar_core::reorder_plan` targets `average_daily_usage × lead_time_days + min_stock` and orders `max(0, target − on_hand)`, rounded up to three decimals. When the material has a shelf life, the order is capped at `average_daily_usage × shelf_life_days − on_hand` so a long lead time cannot push a tenant into buying stock that expires before it is used; the response flags that case. Lead time comes from the material's default supplier and is zero when none is set.
+
+A material with no outbound movement in the window comes back with `insufficient_history: true` and only closes the gap to `min_stock`; the shelf-life cap is skipped because a zero usage would cap every order to zero. Materials whose recommendation is zero are omitted.
+
 ### Offline
 
 The Tauri shell records stock-in while offline; the browser build stays online-only (D2). A receipt is queued in SQLite (`stock_outbox`, created by the shell's plugin migration) with a client-generated `client_ref` UUID, and `POST /sync/stock-in` replays the queue when the device reconnects.
