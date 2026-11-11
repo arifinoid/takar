@@ -11,8 +11,10 @@
 
 pub mod fefo;
 pub mod hpp;
+pub mod reorder;
 pub mod requirement;
 
 pub use fefo::{allocate, Allocation, AllocationLine, FefoError, StockBatch};
 pub use hpp::{production_cost, Consumption, CostError, ProductionCost};
+pub use reorder::{average_daily_usage, reorder_plan, ReorderError, ReorderInput, ReorderPlan};
 pub use requirement::{material_requirement, RequirementError};

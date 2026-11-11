@@ -361,6 +361,32 @@ export const en = {
       generic: "Something went wrong. Try again.",
     },
   },
+  purchasing: {
+    title: "Purchasing",
+    subtitle: "{count} materials to buy · usage averaged over {days} days",
+    loading: "Loading recommendations…",
+    error: "Could not load recommendations.",
+    retry: "Try again",
+    estimated: "Estimated cost",
+    explain:
+      "Each quantity covers the supplier's lead time plus the minimum stock, using outbound movements from the last {days} days.",
+    buy: "Buy",
+    onHand: "On hand",
+    target: "Target",
+    dailyUsage: "Per day",
+    lead: "{supplier} · {days} days lead time",
+    leadImmediate: "{supplier} · same-day lead time",
+    noSupplier: "No supplier set",
+    empty: {
+      title: "Nothing to buy",
+      body: "Every material covers its lead time and minimum stock. Check again after production or when a supplier changes.",
+    },
+    flags: {
+      noHistory: "No usage history",
+      shelfLife: "Capped at {days}-day shelf life",
+      noSupplier: "No supplier set",
+    },
+  },
   production: {
     title: "Production & HPP",
     subtitle: "Plan a batch, see which batches FEFO will use, and record the run.",

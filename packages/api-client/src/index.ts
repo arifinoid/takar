@@ -137,6 +137,30 @@ export type ProductionPreview = {
   materials: ProductionMaterialPlan[];
 };
 
+export type PurchaseRecommendation = {
+  material_id: string;
+  material_name: string;
+  unit_code: string;
+  on_hand: string;
+  min_stock: string;
+  average_daily_usage: string;
+  lead_time_days: number;
+  supplier_name: string | null;
+  shelf_life_days: number | null;
+  target_qty: string;
+  recommended_qty: string;
+  capped_by_shelf_life: boolean;
+  /** No outbound movement in the window; the quantity only closes the min-stock gap. */
+  insufficient_history: boolean;
+  last_cost: string;
+  estimated_cost: string;
+};
+
+export type RecommendationList = {
+  window_days: number;
+  items: PurchaseRecommendation[];
+};
+
 export type TenantSettings = {
   labor_rate_per_hour: string;
 };
@@ -459,6 +483,12 @@ export class ApiClient {
 
   me(token: string): Promise<MeResponse> {
     return this.request<MeResponse>("/me", { token });
+  }
+
+  listRecommendations(token: string): Promise<RecommendationList> {
+    return this.request<RecommendationList>("/purchasing/recommendations", {
+      token,
+    });
   }
 
   getSettings(token: string): Promise<TenantSettings> {
