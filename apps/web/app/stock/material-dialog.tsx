@@ -9,7 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { readToken } from "@/lib/session";
 
 import { stockError } from "./error-copy";
-import { Modal } from "./modal";
+import { Modal } from "@/components/modal";
 
 type Props = {
   units: Unit[];
