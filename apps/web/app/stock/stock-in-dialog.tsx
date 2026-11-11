@@ -1,10 +1,15 @@
 "use client";
 
 import { ApiError, type Batch, type Material, type Supplier } from "@takar/api-client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { api } from "@/lib/api";
 import { addDaysIso, normalizeDecimal, todayIso } from "@/lib/format";
+import {
+  createClientRef,
+  enqueueStockIn,
+  offlineQueueAvailable,
+} from "@/lib/outbox";
 import { useI18n } from "@/lib/i18n";
 import { readToken } from "@/lib/session";
 
@@ -17,6 +22,8 @@ type Props = {
   defaultMaterialId?: string | null;
   onClose: () => void;
   onSaved: (batch: Batch) => void;
+  /** The receipt was written to the local queue instead of the server. */
+  onQueued: () => void;
 };
 
 export function StockInDialog({
@@ -25,6 +32,7 @@ export function StockInDialog({
   defaultMaterialId,
   onClose,
   onSaved,
+  onQueued,
 }: Props) {
   const { t } = useI18n();
   const initial =
@@ -44,6 +52,9 @@ export function StockInDialog({
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // One reference per dialog, so a double submit or a retry cannot duplicate
+  // the receipt on the server.
+  const clientRef = useRef(createClientRef());
 
   const material = materials.find((item) => item.id === materialId);
   const unit = material?.base_unit.code ?? "";
@@ -92,25 +103,52 @@ export function StockInDialog({
       return;
     }
 
+    const body = {
+      material_id: materialId,
+      supplier_id: supplierId || null,
+      received_at: receivedAt,
+      expires_at: expiresAt || null,
+      qty_received: quantity,
+      unit_cost: cost,
+      note: note.trim() || null,
+      client_ref: clientRef.current,
+    };
+
     setSaving(true);
 
+    // With no connection the receipt goes straight to the local queue; the
+    // stock page flushes it when the device comes back online.
+    if (offlineQueueAvailable() && typeof navigator !== "undefined" && !navigator.onLine) {
+      const queued = await enqueueStockIn(body);
+
+      setSaving(false);
+
+      if (queued) {
+        onQueued();
+      } else {
+        setError(t.stock.offline.saveFailed);
+      }
+
+      return;
+    }
+
     try {
-      const batch = await api.stockIn(token, {
-        material_id: materialId,
-        supplier_id: supplierId || null,
-        received_at: receivedAt,
-        expires_at: expiresAt || null,
-        qty_received: quantity,
-        unit_cost: cost,
-        note: note.trim() || null,
-      });
+      const batch = await api.stockIn(token, body);
 
       onSaved(batch);
     } catch (cause) {
-      setError(stockError(t, cause));
+      if (cause instanceof ApiError) {
+        setError(stockError(t, cause));
 
-      if (cause instanceof ApiError && cause.status === 401) {
-        onClose();
+        if (cause.status === 401) {
+          onClose();
+        }
+      } else if (offlineQueueAvailable() && (await enqueueStockIn(body))) {
+        // The request never reached the server: keep it locally instead of
+        // losing what the user typed.
+        onQueued();
+      } else {
+        setError(t.stock.offline.saveFailed);
       }
     } finally {
       setSaving(false);

@@ -13,6 +13,7 @@ pub mod products;
 pub mod recipes;
 pub mod settings;
 pub mod stock;
+pub mod sync;
 
 use std::sync::Arc;
 
@@ -63,6 +64,7 @@ pub fn router(state: AppState) -> Router {
         .merge(recipes::routes())
         .merge(settings::routes())
         .merge(stock::routes())
+        .merge(sync::routes())
         .with_state(state)
         .layer(cors())
         .layer(TraceLayer::new_for_http())

@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@takar/api-client": "workspace:*",
+    "@tauri-apps/plugin-sql": "^2.6.0",
     "lucide-react": "^1.70.0",
     "next": "16.4.5",
     "react": "19.3.1",

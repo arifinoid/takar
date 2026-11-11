@@ -61,6 +61,23 @@ impl IntoResponse for ApiError {
 }
 
 impl ApiError {
+    /// Stable code for callers that report a failure per item, such as the
+    /// offline sync endpoint.
+    pub fn code(&self) -> &'static str {
+        match self {
+            ApiError::BadRequest(code)
+            | ApiError::Unauthorized(code)
+            | ApiError::Forbidden(code)
+            | ApiError::NotFound(code)
+            | ApiError::TooManyRequests(code)
+            | ApiError::Conflict(code)
+            | ApiError::ConflictDetails(code, _)
+            | ApiError::Dependency(code) => code,
+            ApiError::ServiceUnavailable => "database_unavailable",
+            ApiError::Internal(_) => "internal_error",
+        }
+    }
+
     /// Maps write-time Postgres errors onto API errors.
     ///
     /// `duplicate` names the conflict code the caller wants for a unique
