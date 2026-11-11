@@ -118,7 +118,7 @@ Goal: an HPP that users trust and use to set selling prices. This is the densest
 | P2-04 | Transactional production order: FEFO consume, decrement batches, write `production_consumptions` + `stock_movements`, increase product stock, roll back on shortage (see D3) | No production leaves a batch negative; a failure leaves no partial data |
 | P2-05 | HPP in core + snapshot into `production_orders` | Golden tests; historical HPP does not change when material prices rise |
 | P2-06 | Production UI: pick product + qty, preview requirements, confirm, show HPP + margin | One flow without reloads; required versus actual usage is visible |
-| P2-07 | Offline outbox (see D2): local SQLite, queue, sync endpoint, conflict policy | Stock entries made offline sync after reconnect without duplicates |
+| P2-07 | Offline outbox (see D2): Tauri SQLite queue for stock-in, idempotent sync endpoint | Stock entries made offline sync after reconnect without duplicates; a rejected entry stays visible as failed instead of disappearing |
 | P2-08 | Tenant labor rate: `tenants.labor_rate_per_hour` plus a settings endpoint; production snapshots `labor_cost` from `recipe.labor_minutes × rate` | New orders include labor in HPP; existing orders keep their material-only snapshot |
 
 **HPP scope note.** P2-05 snapshotted material cost only; P2-08 adds labor from the tenant rate, so a new order prices `recipe.labor_minutes` at `tenants.labor_rate_per_hour`. Overhead stays out until `cost_overheads` gets an input flow; when it lands, a monthly amount allocated per unit is the recommended shape.
@@ -221,7 +221,7 @@ Do not decide these alone. Ask the user, then record the outcome here.
 | ID | Question | Initial recommendation |
 | --- | --- | --- |
 | D1 | Excel import: onboarding for every plan, or a Pro feature? The product document says both | Onboarding for every plan with a row cap; data entry is the number one product risk |
-| D2 | Offline sync: start in phase 1 or 2, and which conflict policy? | A simple outbox for stock entry in phase 1; last-write-wins per record plus an audit trail, no automatic merge |
+| D2 | Offline sync: start in phase 1 or 2, and which conflict policy? | **Decided (2026-11-11):** phase 2. The Tauri shell queues stock-in only in a local SQLite outbox; each entry carries a client-generated UUID so replay is idempotent. A queued entry the server rejects stays in the outbox marked failed and is shown to the user; no last-write-wins merge and no silent drop. The browser build stays online-only |
 | D3 | Shortage during production: block or allow partial? | Block and show the shortfall list; core already returns an explicit shortfall |
 | D4 | Billing: manual transfer with admin verification, or a gateway? | Manual until roughly 10 paying customers |
 | D5 | OTP channel: WhatsApp, email, or both? | WhatsApp primary, email fallback |

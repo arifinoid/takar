@@ -7,13 +7,21 @@ import type {
   Supplier,
   Unit,
 } from "@takar/api-client";
-import { Ellipsis, Plus, Search } from "lucide-react";
+import { Ellipsis, Plus, RotateCcw, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { api } from "@/lib/api";
 import { daysUntil, formatDate, formatMoney, formatQty } from "@/lib/format";
-import { fill, useI18n } from "@/lib/i18n";
+import { fill, useI18n, type Dictionary } from "@/lib/i18n";
+import {
+  dismissEntry,
+  flushQueue,
+  listQueue,
+  offlineQueueAvailable,
+  retryEntry,
+  type QueuedStockIn,
+} from "@/lib/outbox";
 import { readToken } from "@/lib/session";
 import { useMe } from "@/lib/use-me";
 
@@ -48,6 +56,8 @@ export default function StockPage() {
   const [stockInFor, setStockInFor] = useState<string | null | undefined>();
   const [materialOpen, setMaterialOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [queue, setQueue] = useState<QueuedStockIn[]>([]);
+  const [syncing, setSyncing] = useState(false);
 
   const fetchData = useCallback(async () => {
     const token = readToken();
@@ -88,6 +98,67 @@ export default function StockPage() {
     const timer = window.setTimeout(() => setNotice(null), 5_000);
     return () => window.clearTimeout(timer);
   }, [notice]);
+
+  const refreshQueue = useCallback(async () => {
+    if (!offlineQueueAvailable()) return;
+
+    setQueue(await listQueue());
+  }, []);
+
+  const syncNow = useCallback(async () => {
+    const token = readToken();
+
+    if (!token || !offlineQueueAvailable()) return;
+
+    setSyncing(true);
+
+    try {
+      const summary = await flushQueue(token);
+
+      if (summary.synced > 0) {
+        setNotice(fill(t.stock.offline.synced, { count: summary.synced }));
+        void fetchData();
+      }
+
+      if (summary.failed > 0) {
+        setNotice(fill(t.stock.offline.rejected, { count: summary.failed }));
+      }
+    } catch {
+      // Still offline, or the server is unreachable: entries stay queued.
+    } finally {
+      await refreshQueue();
+      setSyncing(false);
+    }
+  }, [fetchData, refreshQueue, t]);
+
+  useEffect(() => {
+    if (session.status !== "ready" || !offlineQueueAvailable()) return;
+
+    void refreshQueue();
+
+    if (navigator.onLine) {
+      void syncNow();
+    }
+
+    const handleOnline = () => void syncNow();
+
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [session.status, refreshQueue, syncNow]);
+
+  async function retryQueued(clientRef: string) {
+    await retryEntry(clientRef);
+    await refreshQueue();
+
+    if (navigator.onLine) {
+      await syncNow();
+    }
+  }
+
+  async function dismissQueued(clientRef: string) {
+    await dismissEntry(clientRef);
+    await refreshQueue();
+  }
 
   const data = load.status === "ready" ? load.data : null;
 
@@ -378,6 +449,92 @@ export default function StockPage() {
               </section>
             )}
 
+            {queue.length > 0 && (
+              <section className="outbox" aria-live="polite">
+                <div className="outbox__head">
+                  <div>
+                    <strong>
+                      {fill(t.stock.offline.title, { count: queue.length })}
+                    </strong>
+                    <span>
+                      {syncing ? t.stock.offline.syncing : t.stock.offline.body}
+                    </span>
+                  </div>
+                  <button
+                    className="btn btn--secondary"
+                    type="button"
+                    onClick={() => void syncNow()}
+                    disabled={syncing || !navigator.onLine}
+                  >
+                    {t.stock.offline.sync}
+                  </button>
+                </div>
+
+                <ul className="outbox__list">
+                  {queue.map((entry) => {
+                    const material = data?.materials.find(
+                      (item) => item.id === entry.payload.material_id,
+                    );
+
+                    return (
+                      <li
+                        className={`outbox__item${
+                          entry.status === "failed"
+                            ? " outbox__item--failed"
+                            : ""
+                        }`}
+                        key={entry.client_ref}
+                      >
+                        <div className="outbox__what">
+                          <strong>
+                            {material?.name ?? entry.payload.material_id}
+                          </strong>
+                          <span>
+                            {formatQty(entry.payload.qty_received, locale)}{" "}
+                            {material?.base_unit.code ?? ""} ·{" "}
+                            {formatMoney(
+                              Number(entry.payload.unit_cost),
+                              locale,
+                            )}
+                          </span>
+                        </div>
+
+                        {entry.status === "failed" ? (
+                          <div className="outbox__actions">
+                            <span className="pill pill--critical">
+                              {offlineReason(t, entry.code)}
+                            </span>
+                            <button
+                              className="icon-btn"
+                              type="button"
+                              onClick={() => void retryQueued(entry.client_ref)}
+                              aria-label={t.stock.offline.retry}
+                            >
+                              <RotateCcw size={14} />
+                            </button>
+                            <button
+                              className="icon-btn"
+                              type="button"
+                              onClick={() =>
+                                void dismissQueued(entry.client_ref)
+                              }
+                              aria-label={t.stock.offline.dismiss}
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="pill pill--warning">
+                            {t.stock.offline.pending}
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            )}
+
             {notice && (
               <p className="notice" role="status">
                 {notice}
@@ -556,6 +713,11 @@ export default function StockPage() {
                 setNotice(t.stock.saved);
                 void fetchData();
               }}
+              onQueued={() => {
+                closeStockIn();
+                setNotice(t.stock.offline.queued);
+                void refreshQueue();
+              }}
             />
           )}
 
@@ -575,4 +737,21 @@ export default function StockPage() {
       )}
     </>
   );
+}
+
+function offlineReason(t: Dictionary, code: string | null): string {
+  switch (code) {
+    case "material_not_found":
+      return t.stock.offline.reasons.materialMissing;
+    case "invalid_quantity":
+      return t.stock.offline.reasons.invalidQuantity;
+    case "invalid_cost":
+      return t.stock.offline.reasons.invalidCost;
+    case "invalid_supplier":
+      return t.stock.offline.reasons.invalidSupplier;
+    case "permission_denied":
+      return t.stock.offline.reasons.forbidden;
+    default:
+      return t.stock.offline.reasons.generic;
+  }
 }

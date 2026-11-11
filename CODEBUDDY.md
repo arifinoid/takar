@@ -114,6 +114,12 @@ Labor is priced from `tenants.labor_rate_per_hour` (set through `PUT /settings`)
 
 `/settings` is readable by any member because it explains the HPP they see; `PUT /settings` requires `tenant_manage` (owner, admin).
 
+### Offline
+
+The Tauri shell records stock-in while offline; the browser build stays online-only (D2). A receipt is queued in SQLite (`stock_outbox`, created by the shell's plugin migration) with a client-generated `client_ref` UUID, and `POST /sync/stock-in` replays the queue when the device reconnects.
+
+`client_ref` is the idempotency key: `material_batches` has a unique `(tenant_id, client_ref)` index, and replaying a receipt returns the batch the first attempt created with `200` instead of `201`. The sync endpoint runs each entry in its own transaction, so one rejected receipt never rolls back the others; the response reports `created`, `duplicate`, or `rejected` with the API error code per entry. Rejected entries stay in the queue marked failed and appear on the stock page to retry or dismiss — they are never dropped silently and never merged last-write-wins. The online route accepts the same `client_ref`, so a retry after a timeout is safe outside the queue too.
+
 ### Tenancy
 
 Every business row carries `tenant_id`. Postgres RLS is the enforcement layer; app-level filters are defense in depth. The JWT carries `user_id` plus the active `tenant_id`, and each request transaction sets `app.tenant_id` and `app.user_id` via `SET LOCAL`. RLS is forced on every account table, and tests must `SET LOCAL ROLE` to a non-owner role because the table owner bypasses policies. Child tables without `tenant_id` (`recipe_items`, `sale_items`, `production_consumptions`, `unit_conversions`) need either their own column or an `EXISTS` policy against the parent — decide before writing policies.
@@ -135,7 +141,7 @@ Use `rust_decimal` and Postgres `NUMERIC` end to end. Never `f64` for money or q
 - Tauri mobile runs an old WebView on cheap Android phones. Test on low-end devices from the first build, not at the end.
 - Server push (FCM/APNs) is out of MVP scope; alerts go through WhatsApp.
 - sqlx compile-time checked queries need `DATABASE_URL` at build time or a committed `.sqlx` cache. CI must use one of them.
-- Offline sync is not designed yet. Do not invent an outbox or conflict policy ad hoc; it is an explicit roadmap decision.
+- Offline sync covers stock-in only (D2). Production and corrections need a live connection because they depend on current stock; do not widen the outbox without a new decision.
 - The draft schema has no `warehouse_id` although Pro promises two warehouses. Do not add ad-hoc warehouse columns in phase 1 — follow the roadmap decision.
 - Dates: `expires_at` is a `date`, not a timestamp; avoid timezone drift when comparing.
 

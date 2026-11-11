@@ -219,6 +219,19 @@ export type StockInRequest = {
   qty_received: string;
   unit_cost: string;
   note?: string | null;
+  /** Idempotency key for offline replay; the server returns the first batch. */
+  client_ref?: string | null;
+};
+
+export type SyncResult = {
+  client_ref: string | null;
+  status: "created" | "duplicate" | "rejected";
+  batch_id: string | null;
+  code: string | null;
+};
+
+export type SyncResponse = {
+  results: SyncResult[];
 };
 
 export type CreateMaterialRequest = {
@@ -605,6 +618,17 @@ export class ApiClient {
       method: "POST",
       token,
       body,
+    });
+  }
+
+  syncStockIn(
+    token: string,
+    entries: StockInRequest[],
+  ): Promise<SyncResponse> {
+    return this.request<SyncResponse>("/sync/stock-in", {
+      method: "POST",
+      token,
+      body: { entries },
     });
   }
 }
