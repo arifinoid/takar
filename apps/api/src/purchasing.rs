@@ -17,10 +17,6 @@ use takar_core::reorder::{average_daily_usage, reorder_plan, ReorderInput};
 use crate::auth::guard::{CanReadMaterials, Require};
 use crate::{error::ApiError, AppState};
 
-/// Usage is averaged over the last 30 days. Long enough to smooth a weekend,
-/// short enough to follow a menu change.
-const WINDOW_DAYS: i32 = 30;
-
 #[derive(Debug, Serialize)]
 pub struct RecommendationList {
     pub window_days: i32,
@@ -67,6 +63,13 @@ pub async fn recommendations(
     let db = state.db()?;
     let mut tx = takar_db::begin_scoped(db, Some(auth.tenant_id), Some(auth.user_id)).await?;
 
+    // The tenant decides how much history counts. Thirty days is the default.
+    let (window_days,): (i32,) =
+        sqlx::query_as("select usage_window_days from tenants where id = $1")
+            .bind(auth.tenant_id)
+            .fetch_one(&mut *tx)
+            .await?;
+
     let materials: Vec<MaterialRow> = sqlx::query_as(
         "select m.id, m.name, u.code, m.min_stock, m.shelf_life_days, m.last_cost,
                 coalesce(s.lead_time_days, 0), s.name
@@ -104,7 +107,7 @@ pub async fn recommendations(
          group by b.material_id",
     )
     .bind(auth.tenant_id)
-    .bind(WINDOW_DAYS)
+    .bind(window_days)
     .fetch_all(&mut *tx)
     .await?
     .into_iter()
@@ -121,8 +124,11 @@ pub async fn recommendations(
         let (used, movements) = usage.get(&id).copied().unwrap_or((Decimal::ZERO, 0));
         let stock = on_hand.get(&id).copied().unwrap_or(Decimal::ZERO);
 
-        let average = average_daily_usage(used, WINDOW_DAYS as u32)
-            .map_err(|error| ApiError::Internal(anyhow::Error::new(error)))?;
+        // Four decimals is enough for a daily average and keeps the number the
+        // user sees reproducible: the plan is computed from this exact value.
+        let average = average_daily_usage(used, window_days as u32)
+            .map_err(|error| ApiError::Internal(anyhow::Error::new(error)))?
+            .round_dp(4);
 
         let plan = reorder_plan(ReorderInput {
             on_hand: stock,
@@ -164,10 +170,7 @@ pub async fn recommendations(
             .then_with(|| left.material_name.cmp(&right.material_name))
     });
 
-    Ok(Json(RecommendationList {
-        window_days: WINDOW_DAYS,
-        items,
-    }))
+    Ok(Json(RecommendationList { window_days, items }))
 }
 
 pub fn routes() -> Router<AppState> {

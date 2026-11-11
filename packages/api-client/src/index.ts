@@ -163,6 +163,14 @@ export type RecommendationList = {
 
 export type TenantSettings = {
   labor_rate_per_hour: string;
+  /** Days of movement history purchase recommendations average over. */
+  usage_window_days: number;
+};
+
+/** Omitted fields keep their stored value. */
+export type TenantSettingsUpdate = {
+  labor_rate_per_hour?: string;
+  usage_window_days?: number;
 };
 
 export type ProductionConsumption = {
@@ -497,7 +505,7 @@ export class ApiClient {
 
   updateSettings(
     token: string,
-    body: TenantSettings,
+    body: TenantSettingsUpdate,
   ): Promise<TenantSettings> {
     return this.request<TenantSettings>("/settings", {
       method: "PUT",
