@@ -7,6 +7,7 @@ import {
   type ProductionPreview,
 } from "@takar/api-client";
 import { AlertTriangle, CheckCircle2, ChefHat } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { api } from "@/lib/api";
@@ -256,13 +257,9 @@ export default function ProductionPage() {
                 <ChefHat size={26} />
                 <h2>{t.production.empty.title}</h2>
                 <p>{t.production.empty.body}</p>
-                <button
-                  className="btn btn--secondary"
-                  type="button"
-                  onClick={() => void fetchProducts()}
-                >
+                <Link className="btn btn--secondary" href="/products">
                   {t.production.empty.action}
-                </button>
+                </Link>
               </div>
             )}
 

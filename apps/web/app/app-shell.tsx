@@ -3,6 +3,7 @@
 import type { MeResponse } from "@takar/api-client";
 import {
   BarChart3,
+  Boxes,
   CalendarClock,
   ChefHat,
   LayoutDashboard,
@@ -20,7 +21,7 @@ import { useI18n } from "@/lib/i18n";
 
 import { LocaleSwitch } from "./locale-switch";
 
-type Active = "overview" | "stock" | "production";
+type Active = "overview" | "stock" | "production" | "products";
 
 type Item = {
   key: string;
@@ -63,6 +64,12 @@ export function AppShell({ me, active, onSignOut, children }: Props) {
           label: t.nav.production,
           icon: ChefHat,
           href: "/production",
+        },
+        {
+          key: "products",
+          label: t.nav.products,
+          icon: Boxes,
+          href: "/products",
         },
         { key: "stock", label: t.nav.stock, icon: Package, href: "/stock" },
         { key: "batches", label: t.nav.batches, icon: CalendarClock },
