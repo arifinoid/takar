@@ -161,6 +161,45 @@ export type RecommendationList = {
   items: PurchaseRecommendation[];
 };
 
+export type SaleItem = {
+  product_id: string;
+  product_name: string;
+  qty: string;
+  price: string;
+  subtotal: string;
+};
+
+export type Sale = {
+  id: string;
+  sold_at: string;
+  channel: string;
+  total: string;
+  note: string | null;
+  client_ref: string | null;
+  created_at: string;
+  items: SaleItem[];
+};
+
+export type SaleList = {
+  items: Sale[];
+};
+
+export type SaleLineRequest = {
+  product_id: string;
+  qty: string;
+  /** Omitted uses the product's current sell price. */
+  price?: string;
+};
+
+export type SaleRequest = {
+  sold_at?: string;
+  channel?: string;
+  note?: string;
+  /** Idempotency key: replaying the same value returns the first sale. */
+  client_ref?: string;
+  items: SaleLineRequest[];
+};
+
 export type TenantSettings = {
   labor_rate_per_hour: string;
   /** Days of movement history purchase recommendations average over. */
@@ -381,6 +420,7 @@ type ErrorBody = {
   error?: {
     code?: string;
     message?: string;
+    details?: unknown;
   };
 };
 
@@ -388,12 +428,15 @@ type ErrorBody = {
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
+  /** Structured payload for conflicts, such as the shortage list. */
+  readonly details: unknown;
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: string, message: string, details?: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -453,6 +496,7 @@ export class ApiClient {
         response.status,
         error?.code ?? "request_failed",
         error?.message ?? `Request failed with status ${response.status}`,
+        error?.details,
       );
     }
 
@@ -491,6 +535,20 @@ export class ApiClient {
 
   me(token: string): Promise<MeResponse> {
     return this.request<MeResponse>("/me", { token });
+  }
+
+  listSales(token: string, limit?: number): Promise<SaleList> {
+    const query = limit ? `?limit=${limit}` : "";
+
+    return this.request<SaleList>(`/sales${query}`, { token });
+  }
+
+  createSale(token: string, body: SaleRequest): Promise<Sale> {
+    return this.request<Sale>("/sales", {
+      method: "POST",
+      token,
+      body,
+    });
   }
 
   listRecommendations(token: string): Promise<RecommendationList> {

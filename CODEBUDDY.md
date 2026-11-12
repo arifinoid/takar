@@ -114,6 +114,16 @@ Labor is priced from `tenants.labor_rate_per_hour` (set through `PUT /settings`)
 
 `/settings` is readable by any member because it explains the HPP and the shopping list they see; `PUT /settings` requires `tenant_manage` (owner, admin). Fields are optional: an omitted field keeps its stored value.
 
+### Sales
+
+A sale is the only writer that removes finished goods. `POST /sales` runs in one transaction: it locks the products it sells (`select … for update`), rejects the whole document with `409 insufficient_stock` plus every shortage when any line is short, then inserts `sales` and `sale_items` and subtracts `products.stock_qty`. Nothing is written before the check passes, so stock never drifts from the recorded sales.
+
+`sale_items.price` is snapshotted at sale time. Changing `products.sell_price` later never rewrites past revenue, the same way a new purchase never rewrites a past HPP.
+
+`client_ref` (uuid) is the idempotency key for imports and retries: replaying the same document returns the first sale with `200` and moves stock once. `sale_items` carries `tenant_id` so the composite foreign key proves the product belongs to the same tenant; RLS isolates it directly rather than through an `EXISTS` policy.
+
+Channels are validated in the API (`toko`, `reseller`, `online`, `lainnya`) and stored as text, so adding one is a code change rather than a migration. `GET /sales?limit=` returns newest first with their lines. Reads need `sales_read` (every role); writes need `sales_write` (owner, admin).
+
 ### Purchasing
 
 `GET /purchasing/recommendations` turns the movement ledger into a shopping list. Usage is the sum of `production_use`, `waste`, and `expired` movements over the tenant's usage window (`tenants.usage_window_days`, default 30, allowed 1–365), averaged per day; purchases and adjustments are excluded because neither says anything about consumption.
@@ -130,7 +140,7 @@ The Tauri shell records stock-in while offline; the browser build stays online-o
 
 ### Tenancy
 
-Every business row carries `tenant_id`. Postgres RLS is the enforcement layer; app-level filters are defense in depth. The JWT carries `user_id` plus the active `tenant_id`, and each request transaction sets `app.tenant_id` and `app.user_id` via `SET LOCAL`. RLS is forced on every account table, and tests must `SET LOCAL ROLE` to a non-owner role because the table owner bypasses policies. Child tables without `tenant_id` (`recipe_items`, `sale_items`, `production_consumptions`, `unit_conversions`) need either their own column or an `EXISTS` policy against the parent — decide before writing policies.
+Every business row carries `tenant_id`. Postgres RLS is the enforcement layer; app-level filters are defense in depth. The JWT carries `user_id` plus the active `tenant_id`, and each request transaction sets `app.tenant_id` and `app.user_id` via `SET LOCAL`. RLS is forced on every account table, and tests must `SET LOCAL ROLE` to a non-owner role because the table owner bypasses policies. Child tables without `tenant_id` (`recipe_items`, `production_consumptions`, `unit_conversions`) need either their own column or an `EXISTS` policy against the parent — decide before writing policies. `sale_items` took the column because its product reference also has to be tenant-checked.
 
 ### Business invariants
 
