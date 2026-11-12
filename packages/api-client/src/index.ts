@@ -218,6 +218,51 @@ export type SaleRequest = {
   items: SaleLineRequest[];
 };
 
+export type StockValue = {
+  /** Material batches at the cost they were received at. */
+  materials: string;
+  /** Finished goods at their most recent production cost. */
+  products: string;
+  total: string;
+};
+
+export type WasteRow = {
+  material_id: string;
+  material_name: string;
+  unit_code: string;
+  qty: string;
+  value: string;
+};
+
+export type WasteValue = {
+  value: string;
+  movements: number;
+  by_material: WasteRow[];
+};
+
+export type ProductMargin = {
+  product_id: string;
+  name: string;
+  sell_price: string;
+  /** Latest production cost per unit, null when never produced. */
+  unit_cost: string | null;
+  margin_per_unit: string | null;
+  margin_pct: string | null;
+  sold_qty: string;
+  revenue: string;
+  cost_of_goods: string | null;
+  margin: string | null;
+  /** At least one sold line had no cost snapshot, so the totals are partial. */
+  cost_incomplete: boolean;
+};
+
+export type BusinessReport = {
+  window_days: number;
+  stock: StockValue;
+  waste: WasteValue;
+  products: ProductMargin[];
+};
+
 export type TenantSettings = {
   labor_rate_per_hour: string;
   /** Days of movement history purchase recommendations average over. */
@@ -582,6 +627,10 @@ export class ApiClient {
       `/sales/import?format=csv&tz_offset=${tzOffset}`,
       { method: "POST", token, raw: csv },
     );
+  }
+
+  getBusinessReport(token: string): Promise<BusinessReport> {
+    return this.request<BusinessReport>("/reports", { token });
   }
 
   listRecommendations(token: string): Promise<RecommendationList> {

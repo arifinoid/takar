@@ -118,7 +118,7 @@ Labor is priced from `tenants.labor_rate_per_hour` (set through `PUT /settings`)
 
 A sale is the only writer that removes finished goods. `POST /sales` runs in one transaction: it locks the products it sells (`select … for update`), rejects the whole document with `409 insufficient_stock` plus every shortage when any line is short, then inserts `sales` and `sale_items` and subtracts `products.stock_qty`. Nothing is written before the check passes, so stock never drifts from the recorded sales.
 
-`sale_items.price` is snapshotted at sale time. Changing `products.sell_price` later never rewrites past revenue, the same way a new purchase never rewrites a past HPP.
+`sale_items.price` is snapshotted at sale time. Changing `products.sell_price` later never rewrites past revenue, the same way a new purchase never rewrites a past HPP. `sale_items.unit_cost` snapshots the product's latest production cost at the same moment, so a later run at a different cost never rewrites an earned margin; it is null when the product had never been produced.
 
 `client_ref` (uuid) is the idempotency key for imports and retries: replaying the same document returns the first sale with `200` and moves stock once. `sale_items` carries `tenant_id` so the composite foreign key proves the product belongs to the same tenant; RLS isolates it directly rather than through an `EXISTS` policy.
 
@@ -127,6 +127,16 @@ Channels are validated in the API (`toko`, `reseller`, `online`, `lainnya`) and 
 `POST /sales/import?format=csv&tz_offset=` reads a CSV as raw bytes and groups rows into sales by the user's own `sale_ref`. That reference is hashed into the sale's `client_ref` (UUID v5, scoped to the tenant), so re-importing the same file reports `duplicate` instead of subtracting the stock twice; a row without a reference is a new sale every time, because the server has nothing to recognise it by. Each sale is its own transaction, so one bad row never rolls back the rest, and rows are reported with their spreadsheet line number. `tz_offset` is minutes east of UTC for timestamps written without an offset (Jakarta is 420). Only CSV is accepted: an xlsx date cell arrives as a serial number. The template ships at `apps/web/public/templates/sales-import.csv`.
 
 Both entry points call `sales::write_sale`, so a typed sale and an imported one obey the same price snapshot, stock check, and duplicate rule.
+
+### Reports
+
+`GET /reports` returns stock value, waste, and margin per product over the tenant's usage window.
+
+Stock value is `sum(qty_remaining × unit_cost)` over material batches plus `stock_qty × latest production unit_cost` for finished goods. It never uses `materials.last_cost`: a new purchase at a different price must not revalue stock already on the shelf.
+
+Waste is the sum of `waste` and `expired` movements in the window, valued at each movement's own `unit_cost`.
+
+Margin per unit is `sell_price − latest unit_cost`; a product that has never been produced has no cost and comes back flagged rather than estimated from its recipe. Historical margin is `revenue − cost_of_goods` from `sale_items.unit_cost`, so a sale written before that column existed makes the product's totals null and sets `cost_incomplete` instead of valuing the past at today's cost.
 
 ### Purchasing
 
