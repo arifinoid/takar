@@ -26,6 +26,7 @@ type Active =
   | "stock"
   | "production"
   | "products"
+  | "pos"
   | "purchasing"
   | "settings";
 
@@ -84,7 +85,12 @@ export function AppShell({ me, active, onSignOut, children }: Props) {
     {
       label: t.nav.sales,
       items: [
-        { key: "pos", label: t.nav.pos, icon: ShoppingCart },
+        {
+          key: "pos",
+          label: t.nav.pos,
+          icon: ShoppingCart,
+          href: "/sales",
+        },
         {
           key: "purchasing",
           label: t.nav.purchasing,
