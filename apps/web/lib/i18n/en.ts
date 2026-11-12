@@ -373,6 +373,33 @@ export const en = {
       title: "Recent sales",
       empty: "No sales recorded yet.",
     },
+    import: {
+      title: "Import from a spreadsheet",
+      body: "One row per product sold. Rows with the same sale_ref become one sale, and importing the same reference again is skipped instead of counted twice.",
+      download: "Download template",
+      submit: "Import",
+      importing: "Importing…",
+      summary:
+        "{created} sales recorded, {duplicate} already imported, {rejected} rows rejected.",
+      row: "Row {row}",
+      errors: {
+        unknownProduct: "product not found",
+        productRequired: "product is empty",
+        invalidQty: "quantity must be greater than zero",
+        invalidPrice: "price cannot be negative",
+        invalidSoldAt: "date is not YYYY-MM-DD HH:MM",
+        invalidChannel: "channel must be toko, reseller, online or lainnya",
+        duplicateProduct: "the same product appears twice in one sale",
+        insufficientStock: "not enough stock",
+        noteTooLong: "note is longer than 500 characters",
+        tooManyRows: "The file has more than 500 rows. Split it and import again.",
+        missingHeader: "The first row must be a header with a product column.",
+        emptyFile: "The file is empty.",
+        unsupportedFormat: "Save the sheet as CSV and import that.",
+        generic: "Could not import the file.",
+      },
+    },
+
     errors: {
       productRequired: "Choose a product for every line.",
       qtyRequired: "Every quantity must be greater than zero.",

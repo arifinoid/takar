@@ -38,7 +38,7 @@ const MAX_LIMIT: i64 = 200;
 
 /// Channels the app can record. The database keeps the value as text, so
 /// adding one here needs no migration.
-const CHANNELS: [&str; 4] = ["toko", "reseller", "online", "lainnya"];
+pub(crate) const CHANNELS: [&str; 4] = ["toko", "reseller", "online", "lainnya"];
 
 #[derive(Debug, Deserialize)]
 pub struct SaleBody {
@@ -118,6 +118,34 @@ pub async fn create_sale(
     Json(body): Json<SaleBody>,
 ) -> Result<(StatusCode, Json<SaleView>), ApiError> {
     let auth = guard.auth;
+    let db = state.db()?;
+    let mut tx = takar_db::begin_scoped(db, Some(auth.tenant_id), Some(auth.user_id)).await?;
+
+    let (created, sale) = write_sale(&mut tx, auth.tenant_id, auth.user_id, &body).await?;
+
+    tx.commit().await?;
+
+    let status = if created {
+        StatusCode::CREATED
+    } else {
+        StatusCode::OK
+    };
+
+    Ok((status, Json(sale)))
+}
+
+/// Writes one sale inside an existing transaction.
+///
+/// Shared with the importer so a typed sale and an imported one obey exactly
+/// the same rules: price snapshot, stock check, and `client_ref` duplicate
+/// detection. Returns whether a sale was created; `false` means the reference
+/// was already used and the stored sale is returned unchanged.
+pub(crate) async fn write_sale(
+    tx: &mut Transaction<'_, Postgres>,
+    tenant_id: Uuid,
+    user_id: Uuid,
+    body: &SaleBody,
+) -> Result<(bool, SaleView), ApiError> {
     let channel = validate_channel(body.channel.as_deref())?;
     let note = validate_note(body.note.as_deref())?;
 
@@ -146,23 +174,18 @@ pub async fn create_sale(
         }
     }
 
-    let db = state.db()?;
-    let mut tx = takar_db::begin_scoped(db, Some(auth.tenant_id), Some(auth.user_id)).await?;
-
     // A replayed document returns the first sale. Checked inside the
     // transaction so two concurrent replays cannot both create one.
     if let Some(client_ref) = body.client_ref {
         let existing: Option<Uuid> =
             sqlx::query_scalar("select id from sales where tenant_id = $1 and client_ref = $2")
-                .bind(auth.tenant_id)
+                .bind(tenant_id)
                 .bind(client_ref)
-                .fetch_optional(&mut *tx)
+                .fetch_optional(&mut **tx)
                 .await?;
 
         if let Some(id) = existing {
-            let sale = fetch_sale(&mut tx, auth.tenant_id, id).await?;
-            tx.commit().await?;
-            return Ok((StatusCode::OK, Json(sale)));
+            return Ok((false, fetch_sale(tx, tenant_id, id).await?));
         }
     }
 
@@ -175,9 +198,9 @@ pub async fn create_sale(
          where tenant_id = $1 and id = any($2) and is_active
          for update",
     )
-    .bind(auth.tenant_id)
+    .bind(tenant_id)
     .bind(&ids)
-    .fetch_all(&mut *tx)
+    .fetch_all(&mut **tx)
     .await?;
 
     let by_id: HashMap<Uuid, (String, Decimal, Decimal)> = products
@@ -232,14 +255,14 @@ pub async fn create_sale(
          values ($1, coalesce($2, now()), $3, $4, $5, $6, $7)
          returning id",
     )
-    .bind(auth.tenant_id)
+    .bind(tenant_id)
     .bind(body.sold_at)
     .bind(channel)
     .bind(total)
     .bind(note)
     .bind(body.client_ref)
-    .bind(auth.user_id)
-    .fetch_one(&mut *tx)
+    .bind(user_id)
+    .fetch_one(&mut **tx)
     .await?;
 
     for line in &lines {
@@ -248,11 +271,11 @@ pub async fn create_sale(
              values ($1, $2, $3, $4, $5)",
         )
         .bind(sale_id)
-        .bind(auth.tenant_id)
+        .bind(tenant_id)
         .bind(line.product_id)
         .bind(line.qty)
         .bind(line.price)
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
 
         sqlx::query(
@@ -261,16 +284,15 @@ pub async fn create_sale(
              where id = $1 and tenant_id = $2",
         )
         .bind(line.product_id)
-        .bind(auth.tenant_id)
+        .bind(tenant_id)
         .bind(line.qty)
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
     }
 
-    let sale = fetch_sale(&mut tx, auth.tenant_id, sale_id).await?;
-    tx.commit().await?;
+    let sale = fetch_sale(tx, tenant_id, sale_id).await?;
 
-    Ok((StatusCode::CREATED, Json(sale)))
+    Ok((true, sale))
 }
 
 pub async fn list_sales(

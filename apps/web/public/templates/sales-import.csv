@@ -1,0 +1,4 @@
+sold_at,channel,product,qty,price,note,sale_ref
+2026-11-01 09:30,toko,Roti sobek,2,15000,,INV-001
+2026-11-01 09:30,toko,Bolu pandan,1,,,INV-001
+2026-11-01 13:15,online,Bolu pandan,3,,,INV-002

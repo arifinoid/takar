@@ -13,7 +13,9 @@ pub mod products;
 pub mod purchasing;
 pub mod recipes;
 pub mod sales;
+pub mod sales_import;
 pub mod settings;
+pub mod spreadsheet;
 pub mod stock;
 pub mod sync;
 
@@ -65,6 +67,7 @@ pub fn router(state: AppState) -> Router {
         .merge(products::routes())
         .merge(purchasing::routes())
         .merge(sales::routes())
+        .merge(sales_import::routes())
         .merge(recipes::routes())
         .merge(settings::routes())
         .merge(stock::routes())

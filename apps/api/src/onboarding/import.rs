@@ -10,16 +10,15 @@ use axum::{
     extract::{Query, State},
     Json,
 };
-use calamine::{open_workbook_auto_from_rs, Data, Reader};
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::io::Cursor;
 use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::auth::guard::{CanWriteMaterials, Require};
 use crate::error::ApiError;
+use crate::spreadsheet::Format;
 use crate::AppState;
 
 use super::templates::{existing_names, unit_ids};
@@ -48,23 +47,7 @@ pub async fn import_materials(
         return Err(ApiError::BadRequest("empty_file"));
     }
 
-    let format = match query.format.as_deref() {
-        Some("csv") => Format::Csv,
-        Some("xlsx") => Format::Xlsx,
-        Some(_) => return Err(ApiError::BadRequest("unsupported_format")),
-        None => {
-            if body.starts_with(b"PK") {
-                Format::Xlsx
-            } else {
-                Format::Csv
-            }
-        }
-    };
-
-    let rows = match format {
-        Format::Csv => parse_csv(&body),
-        Format::Xlsx => parse_xlsx(&body)?,
-    };
+    let rows = Format::from_request(query.format.as_deref(), &body)?.parse(&body)?;
 
     // Row numbers stay tied to the spreadsheet, header included.
     let data_rows: Vec<(usize, &Vec<String>)> = rows
@@ -130,11 +113,6 @@ pub async fn import_materials(
         skipped,
         errors,
     }))
-}
-
-enum Format {
-    Csv,
-    Xlsx,
 }
 
 fn is_header(row: &[String]) -> bool {
@@ -207,82 +185,4 @@ fn normalize_unit(value: &str) -> Option<&'static str> {
 fn parse_decimal(value: &str) -> Option<Decimal> {
     let normalized = value.trim().replace(' ', "").replace(',', ".");
     Decimal::from_str(&normalized).ok()
-}
-
-fn cell_text(cell: &Data) -> String {
-    match cell {
-        Data::Empty => String::new(),
-        Data::String(value) => value.trim().to_string(),
-        Data::Float(value) => trim_number(*value),
-        Data::Int(value) => value.to_string(),
-        Data::Bool(value) => value.to_string(),
-        Data::DateTime(value) => trim_number(value.as_f64()),
-        Data::DateTimeIso(value) | Data::DurationIso(value) => value.clone(),
-        Data::Error(error) => format!("{error:?}"),
-    }
-}
-
-/// "2.5" stays "2.5"; "2.0" becomes "2" so the parser sees a clean number.
-fn trim_number(value: f64) -> String {
-    if value.fract() == 0.0 {
-        format!("{}", value as i64)
-    } else {
-        format!("{value}")
-    }
-}
-
-fn parse_xlsx(bytes: &[u8]) -> Result<Vec<Vec<String>>, ApiError> {
-    let mut workbook = open_workbook_auto_from_rs(Cursor::new(bytes))
-        .map_err(|_| ApiError::BadRequest("invalid_file"))?;
-
-    let range = workbook
-        .worksheet_range_at(0)
-        .ok_or(ApiError::BadRequest("empty_file"))?
-        .map_err(|_| ApiError::BadRequest("invalid_file"))?;
-
-    Ok(range
-        .rows()
-        .map(|row| row.iter().map(cell_text).collect())
-        .collect())
-}
-
-fn parse_csv(bytes: &[u8]) -> Vec<Vec<String>> {
-    let text = String::from_utf8_lossy(bytes);
-    let mut rows = Vec::new();
-    let mut row: Vec<String> = Vec::new();
-    let mut field = String::new();
-    let mut quoted = false;
-    let mut characters = text.chars().peekable();
-
-    while let Some(character) = characters.next() {
-        match character {
-            '"' if quoted => {
-                if characters.peek() == Some(&'"') {
-                    characters.next();
-                    field.push('"');
-                } else {
-                    quoted = false;
-                }
-            }
-            '"' if field.is_empty() => quoted = true,
-            ',' if !quoted => {
-                row.push(field.trim().to_string());
-                field.clear();
-            }
-            '\r' if !quoted => {}
-            '\n' if !quoted => {
-                row.push(field.trim().to_string());
-                rows.push(std::mem::take(&mut row));
-                field.clear();
-            }
-            other => field.push(other),
-        }
-    }
-
-    if !field.is_empty() || !row.is_empty() {
-        row.push(field.trim().to_string());
-        rows.push(row);
-    }
-
-    rows
 }
