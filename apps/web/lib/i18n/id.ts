@@ -372,6 +372,33 @@ export const id: Dictionary = {
       title: "Penjualan terakhir",
       empty: "Belum ada penjualan.",
     },
+    import: {
+      title: "Impor dari spreadsheet",
+      body: "Satu baris untuk setiap produk yang terjual. Baris dengan sale_ref yang sama menjadi satu penjualan, dan impor ulang referensi yang sama dilewati, bukan dihitung dua kali.",
+      download: "Unduh template",
+      submit: "Impor",
+      importing: "Mengimpor…",
+      summary:
+        "{created} penjualan tercatat, {duplicate} sudah ada, {rejected} baris ditolak.",
+      row: "Baris {row}",
+      errors: {
+        unknownProduct: "produk tidak ditemukan",
+        productRequired: "produk kosong",
+        invalidQty: "jumlah harus lebih dari nol",
+        invalidPrice: "harga tidak boleh negatif",
+        invalidSoldAt: "tanggal bukan YYYY-MM-DD HH:MM",
+        invalidChannel: "kanal harus toko, reseller, online, atau lainnya",
+        duplicateProduct: "produk yang sama muncul dua kali dalam satu penjualan",
+        insufficientStock: "stok tidak cukup",
+        noteTooLong: "catatan lebih dari 500 karakter",
+        tooManyRows: "File lebih dari 500 baris. Pecah lalu impor lagi.",
+        missingHeader: "Baris pertama harus header dengan kolom produk.",
+        emptyFile: "File kosong.",
+        unsupportedFormat: "Simpan sheet sebagai CSV lalu impor file itu.",
+        generic: "Gagal mengimpor file.",
+      },
+    },
+
     errors: {
       productRequired: "Pilih produk untuk setiap baris.",
       qtyRequired: "Jumlah harus lebih dari nol.",

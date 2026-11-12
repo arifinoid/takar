@@ -191,6 +191,24 @@ export type SaleLineRequest = {
   price?: string;
 };
 
+export type SaleImportRow = {
+  /** Spreadsheet row number, header included. */
+  row: number;
+  sale_ref: string | null;
+  status: "created" | "duplicate" | "rejected";
+  sale_id: string | null;
+  /** The API error code when the row was rejected. */
+  code: string | null;
+};
+
+export type SaleImportSummary = {
+  /** Sales written, not rows. */
+  created: number;
+  duplicate: number;
+  rejected: number;
+  rows: SaleImportRow[];
+};
+
 export type SaleRequest = {
   sold_at?: string;
   channel?: string;
@@ -549,6 +567,21 @@ export class ApiClient {
       token,
       body,
     });
+  }
+
+  /**
+   * Imports a CSV. `tzOffset` is minutes east of UTC, used for timestamps
+   * written without an offset.
+   */
+  importSales(
+    token: string,
+    csv: string,
+    tzOffset: number,
+  ): Promise<SaleImportSummary> {
+    return this.request<SaleImportSummary>(
+      `/sales/import?format=csv&tz_offset=${tzOffset}`,
+      { method: "POST", token, raw: csv },
+    );
   }
 
   listRecommendations(token: string): Promise<RecommendationList> {

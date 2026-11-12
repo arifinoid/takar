@@ -124,6 +124,10 @@ A sale is the only writer that removes finished goods. `POST /sales` runs in one
 
 Channels are validated in the API (`toko`, `reseller`, `online`, `lainnya`) and stored as text, so adding one is a code change rather than a migration. `GET /sales?limit=` returns newest first with their lines. Reads need `sales_read` (every role); writes need `sales_write` (owner, admin).
 
+`POST /sales/import?format=csv&tz_offset=` reads a CSV as raw bytes and groups rows into sales by the user's own `sale_ref`. That reference is hashed into the sale's `client_ref` (UUID v5, scoped to the tenant), so re-importing the same file reports `duplicate` instead of subtracting the stock twice; a row without a reference is a new sale every time, because the server has nothing to recognise it by. Each sale is its own transaction, so one bad row never rolls back the rest, and rows are reported with their spreadsheet line number. `tz_offset` is minutes east of UTC for timestamps written without an offset (Jakarta is 420). Only CSV is accepted: an xlsx date cell arrives as a serial number. The template ships at `apps/web/public/templates/sales-import.csv`.
+
+Both entry points call `sales::write_sale`, so a typed sale and an imported one obey the same price snapshot, stock check, and duplicate rule.
+
 ### Purchasing
 
 `GET /purchasing/recommendations` turns the movement ledger into a shopping list. Usage is the sum of `production_use`, `waste`, and `expired` movements over the tenant's usage window (`tenants.usage_window_days`, default 30, allowed 1–365), averaged per day; purchases and adjustments are excluded because neither says anything about consumption.

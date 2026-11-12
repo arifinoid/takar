@@ -106,6 +106,41 @@ pub async fn call(
     (status, value)
 }
 
+/// Raw body, for the endpoints that take a file instead of JSON.
+pub async fn call_raw(
+    app: &Router,
+    uri: &str,
+    body: &str,
+    token: Option<&str>,
+) -> (StatusCode, Value) {
+    let mut builder = Request::builder()
+        .method("POST")
+        .uri(uri)
+        .header("content-type", "text/csv");
+
+    if let Some(token) = token {
+        builder = builder.header("authorization", format!("Bearer {token}"));
+    }
+
+    let request = builder.body(Body::from(body.to_string())).expect("request");
+    let response = app.clone().oneshot(request).await.expect("response");
+    let status = response.status();
+    let bytes = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body")
+        .to_bytes();
+
+    let value = if bytes.is_empty() {
+        Value::Null
+    } else {
+        serde_json::from_slice(&bytes).unwrap_or(Value::Null)
+    };
+
+    (status, value)
+}
+
 /// First login for a contact with no memberships: creates the tenant and the
 /// owner membership, so the response carries a usable session token.
 pub async fn signup(app: &Router, otp: &CaptureOtp, contact: &str) -> Value {

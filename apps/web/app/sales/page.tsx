@@ -4,6 +4,7 @@ import {
   ApiError,
   type Product,
   type Sale,
+  type SaleImportSummary,
   type SaleRequest,
 } from "@takar/api-client";
 import { Plus, Receipt, Trash2 } from "lucide-react";
@@ -80,6 +81,31 @@ function channelLabel(t: Dictionary, channel: string): string {
   }
 }
 
+function importRowError(t: Dictionary, code: string | null): string {
+  switch (code) {
+    case "unknown_product":
+      return t.sales.import.errors.unknownProduct;
+    case "product_required":
+      return t.sales.import.errors.productRequired;
+    case "invalid_qty":
+      return t.sales.import.errors.invalidQty;
+    case "invalid_price":
+      return t.sales.import.errors.invalidPrice;
+    case "invalid_sold_at":
+      return t.sales.import.errors.invalidSoldAt;
+    case "invalid_channel":
+      return t.sales.import.errors.invalidChannel;
+    case "duplicate_product":
+      return t.sales.import.errors.duplicateProduct;
+    case "insufficient_stock":
+      return t.sales.import.errors.insufficientStock;
+    case "note_too_long":
+      return t.sales.import.errors.noteTooLong;
+    default:
+      return code ?? t.sales.import.errors.generic;
+  }
+}
+
 function shortageMessage(
   t: Dictionary,
   locale: "id" | "en",
@@ -115,6 +141,14 @@ export default function SalesPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const clientRef = useRef(newRef());
+
+  const [file, setFile] = useState<File | null>(null);
+  const [importKey, setImportKey] = useState(0);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<SaleImportSummary | null>(
+    null,
+  );
 
   useEffect(() => {
     if (session.status !== "ready") return;
@@ -251,6 +285,56 @@ export default function SalesPage() {
       }
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function submitImport(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setImportError(null);
+    setImportResult(null);
+
+    const token = readToken();
+
+    if (!token || !file) return;
+
+    setImporting(true);
+
+    try {
+      const text = await file.text();
+      // Naive timestamps in the file belong to the shop's clock, not UTC.
+      const result = await api.importSales(
+        token,
+        text,
+        -new Date().getTimezoneOffset(),
+      );
+
+      setImportResult(result);
+      setFile(null);
+      setImportKey((key) => key + 1);
+
+      const [fresh, list] = await Promise.all([
+        api.listProducts(token),
+        api.listSales(token, 50),
+      ]);
+
+      setLoad({ status: "ready", products: fresh });
+      setSales(list.items);
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.code === "permission_denied") {
+        setImportError(t.sales.errors.forbidden);
+      } else if (cause instanceof ApiError && cause.code === "too_many_rows") {
+        setImportError(t.sales.import.errors.tooManyRows);
+      } else if (cause instanceof ApiError && cause.code === "missing_header") {
+        setImportError(t.sales.import.errors.missingHeader);
+      } else if (cause instanceof ApiError && cause.code === "empty_file") {
+        setImportError(t.sales.import.errors.emptyFile);
+      } else if (cause instanceof ApiError && cause.code === "unsupported_format") {
+        setImportError(t.sales.import.errors.unsupportedFormat);
+      } else {
+        setImportError(t.sales.import.errors.generic);
+      }
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -461,6 +545,84 @@ export default function SalesPage() {
                       </p>
                     )}
                   </form>
+                )}
+
+                {canWrite && (
+                  <section className="sale-import">
+                    <div className="sale-import__head">
+                      <div>
+                        <h2>{t.sales.import.title}</h2>
+                        <p>{t.sales.import.body}</p>
+                      </div>
+
+                      <a
+                        className="btn btn--secondary"
+                        href="/templates/sales-import.csv"
+                        download
+                      >
+                        {t.sales.import.download}
+                      </a>
+                    </div>
+
+                    <form className="sale-import__form" onSubmit={submitImport}>
+                      <input
+                        key={importKey}
+                        className="sale-import__file"
+                        type="file"
+                        accept=".csv,text/csv"
+                        onChange={(event) => {
+                          setFile(event.target.files?.[0] ?? null);
+                          setImportResult(null);
+                          setImportError(null);
+                        }}
+                        required
+                      />
+
+                      <button
+                        className="btn btn--primary"
+                        type="submit"
+                        disabled={importing || !file}
+                      >
+                        {importing
+                          ? t.sales.import.importing
+                          : t.sales.import.submit}
+                      </button>
+                    </form>
+
+                    {importError && (
+                      <p className="form__error" role="alert">
+                        {importError}
+                      </p>
+                    )}
+
+                    {importResult && (
+                      <div className="sale-import__result" role="status">
+                        <p>
+                          {fill(t.sales.import.summary, {
+                            created: importResult.created,
+                            duplicate: importResult.duplicate,
+                            rejected: importResult.rejected,
+                          })}
+                        </p>
+
+                        {importResult.rejected > 0 && (
+                          <ul>
+                            {importResult.rows
+                              .filter((row) => row.status === "rejected")
+                              .map((row) => (
+                                <li key={row.row}>
+                                  <strong>
+                                    {fill(t.sales.import.row, { row: row.row })}
+                                  </strong>
+                                  {": "}
+                                  {importRowError(t, row.code)}
+                                </li>
+                              ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </section>
                 )}
 
                 <section className="sales-list">
