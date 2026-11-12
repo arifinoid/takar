@@ -1,7 +1,9 @@
 //! Shared domain types and the HTTP API contract.
 
+pub mod plan;
 pub mod rbac;
 
+pub use plan::{Plan, PlanLimits, Resource};
 pub use rbac::{Permission, Role};
 
 use serde::{Deserialize, Serialize};

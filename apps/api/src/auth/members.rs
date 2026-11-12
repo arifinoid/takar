@@ -23,6 +23,7 @@ use super::{
     jwt::TokenScope,
     secret,
 };
+use crate::subscription::ensure_capacity;
 use crate::{error::ApiError, AppState};
 
 const INVITATION_TTL_DAYS: i64 = 7;
@@ -402,6 +403,10 @@ pub async fn create_invitation(
     if existing.is_some() {
         return Err(ApiError::Conflict("already_a_member"));
     }
+
+    // Checked before the invitation is written: a pending invitation already
+    // reserves a seat, so a tenant cannot over-invite and sort it out later.
+    ensure_capacity(&mut tx, auth.tenant_id, takar_domain::plan::Resource::Users).await?;
 
     let token = secret::random_token();
     let token_hash = secret::hash(&state.jwt.secret, &token);

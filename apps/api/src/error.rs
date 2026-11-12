@@ -10,6 +10,9 @@ pub enum ApiError {
     BadRequest(&'static str),
     Unauthorized(&'static str),
     Forbidden(&'static str),
+    /// A refusal that carries structured details, so the client can show the
+    /// limit and the current usage instead of a bare code.
+    ForbiddenDetails(&'static str, serde_json::Value),
     NotFound(&'static str),
     TooManyRequests(&'static str),
     Conflict(&'static str),
@@ -29,6 +32,9 @@ impl IntoResponse for ApiError {
             ApiError::BadRequest(code) => (StatusCode::BAD_REQUEST, code, None),
             ApiError::Unauthorized(code) => (StatusCode::UNAUTHORIZED, code, None),
             ApiError::Forbidden(code) => (StatusCode::FORBIDDEN, code, None),
+            ApiError::ForbiddenDetails(code, details) => {
+                (StatusCode::FORBIDDEN, code, Some(details))
+            }
             ApiError::NotFound(code) => (StatusCode::NOT_FOUND, code, None),
             ApiError::TooManyRequests(code) => (StatusCode::TOO_MANY_REQUESTS, code, None),
             ApiError::Conflict(code) => (StatusCode::CONFLICT, code, None),
@@ -68,6 +74,7 @@ impl ApiError {
             ApiError::BadRequest(code)
             | ApiError::Unauthorized(code)
             | ApiError::Forbidden(code)
+            | ApiError::ForbiddenDetails(code, _)
             | ApiError::NotFound(code)
             | ApiError::TooManyRequests(code)
             | ApiError::Conflict(code)

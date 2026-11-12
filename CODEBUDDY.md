@@ -128,6 +128,14 @@ Channels are validated in the API (`toko`, `reseller`, `online`, `lainnya`) and 
 
 Both entry points call `sales::write_sale`, so a typed sale and an imported one obey the same price snapshot, stock check, and duplicate rule.
 
+### Plans
+
+Every tenant starts on `trial` with `trial_ends_at` set to 14 days after creation. The limits live in `takar-domain::plan` (`Plan::limits`) and are entitlements, not permissions: the role says what a member may do, the plan says how much of it the tenant may have. They are checked in the service layer before a create, never in RLS.
+
+`GET /subscription` returns the plan, the trial end, the limits, and current usage. Seats count active memberships plus pending invitations, because an invitation reserves a seat. Materials and recipes count only active rows: archiving a material frees a slot, and a new recipe version does not consume one. Warehouses have no table until P4-01, so that counter stays at zero.
+
+A create over the limit is refused with `403 plan_limit_reached` and `details { resource, plan, limit, current }`. Only creates are checked — a downgrade never deletes or hides rows, it just blocks the next one.
+
 ### Reports
 
 `GET /reports` returns stock value, waste, and margin per product over the tenant's usage window.

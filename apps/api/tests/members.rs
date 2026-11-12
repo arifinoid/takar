@@ -1,16 +1,32 @@
 mod common;
 
-use axum::http::StatusCode;
+use axum::{http::StatusCode, Router};
 use common::{add_member, call, login, signup, tenant_of, test_app, user_of, CaptureOtp};
-use serde_json::json;
+use serde_json::{json, Value};
 use sqlx::PgPool;
+
+/// These tests are about roles, not plans: the trial caps at one seat, so give
+/// the tenant room before inviting anyone.
+async fn signup_with_seats(app: &Router, otp: &CaptureOtp, pool: &PgPool, contact: &str) -> Value {
+    let owner = signup(app, otp, contact).await;
+    let token = owner["access_token"].as_str().expect("token");
+    let tenant_id = tenant_of(app, token).await;
+
+    sqlx::query("update tenants set plan = 'business' where id = $1")
+        .bind(tenant_id)
+        .execute(pool)
+        .await
+        .expect("plan");
+
+    owner
+}
 
 #[sqlx::test(migrations = "../../migrations")]
 async fn invitation_grants_access_after_acceptance(pool: PgPool) {
     let otp = CaptureOtp::default();
     let app = test_app(pool.clone(), otp.clone());
 
-    let owner = signup(&app, &otp, "owner@example.test").await;
+    let owner = signup_with_seats(&app, &otp, &pool, "owner@example.test").await;
     let owner_token = owner["access_token"].as_str().expect("token");
 
     let (status, created) = call(
@@ -73,7 +89,7 @@ async fn viewer_can_read_members_but_cannot_invite(pool: PgPool) {
     let otp = CaptureOtp::default();
     let app = test_app(pool.clone(), otp.clone());
 
-    let owner = signup(&app, &otp, "owner@example.test").await;
+    let owner = signup_with_seats(&app, &otp, &pool, "owner@example.test").await;
     let owner_token = owner["access_token"].as_str().expect("token");
     let tenant_id = tenant_of(&app, owner_token).await;
 
@@ -104,7 +120,7 @@ async fn admin_cannot_invite_peers_or_owners(pool: PgPool) {
     let otp = CaptureOtp::default();
     let app = test_app(pool.clone(), otp.clone());
 
-    let owner = signup(&app, &otp, "owner@example.test").await;
+    let owner = signup_with_seats(&app, &otp, &pool, "owner@example.test").await;
     let owner_token = owner["access_token"].as_str().expect("token");
     let tenant_id = tenant_of(&app, owner_token).await;
 
@@ -151,7 +167,7 @@ async fn admin_cannot_suspend_an_owner(pool: PgPool) {
     let otp = CaptureOtp::default();
     let app = test_app(pool.clone(), otp.clone());
 
-    let owner = signup(&app, &otp, "owner@example.test").await;
+    let owner = signup_with_seats(&app, &otp, &pool, "owner@example.test").await;
     let owner_token = owner["access_token"].as_str().expect("token");
     let owner_id = user_of(&app, owner_token).await;
     let tenant_id = tenant_of(&app, owner_token).await;
@@ -177,9 +193,9 @@ async fn admin_cannot_suspend_an_owner(pool: PgPool) {
 #[sqlx::test(migrations = "../../migrations")]
 async fn last_owner_cannot_be_demoted_suspended_or_removed(pool: PgPool) {
     let otp = CaptureOtp::default();
-    let app = test_app(pool, otp.clone());
+    let app = test_app(pool.clone(), otp.clone());
 
-    let owner = signup(&app, &otp, "owner@example.test").await;
+    let owner = signup_with_seats(&app, &otp, &pool, "owner@example.test").await;
     let token = owner["access_token"].as_str().expect("token");
     let owner_id = user_of(&app, token).await;
 
@@ -222,7 +238,7 @@ async fn owner_can_step_down_when_a_co_owner_exists(pool: PgPool) {
     let otp = CaptureOtp::default();
     let app = test_app(pool.clone(), otp.clone());
 
-    let owner = signup(&app, &otp, "owner@example.test").await;
+    let owner = signup_with_seats(&app, &otp, &pool, "owner@example.test").await;
     let token = owner["access_token"].as_str().expect("token");
     let owner_id = user_of(&app, token).await;
     let tenant_id = tenant_of(&app, token).await;
@@ -260,7 +276,7 @@ async fn invitation_for_another_contact_is_rejected(pool: PgPool) {
     let otp = CaptureOtp::default();
     let app = test_app(pool.clone(), otp.clone());
 
-    let owner = signup(&app, &otp, "owner@example.test").await;
+    let owner = signup_with_seats(&app, &otp, &pool, "owner@example.test").await;
     let owner_token = owner["access_token"].as_str().expect("token");
 
     let (status, created) = call(
@@ -294,9 +310,9 @@ async fn invitation_for_another_contact_is_rejected(pool: PgPool) {
 #[sqlx::test(migrations = "../../migrations")]
 async fn revoked_invitation_cannot_be_accepted(pool: PgPool) {
     let otp = CaptureOtp::default();
-    let app = test_app(pool, otp.clone());
+    let app = test_app(pool.clone(), otp.clone());
 
-    let owner = signup(&app, &otp, "owner@example.test").await;
+    let owner = signup_with_seats(&app, &otp, &pool, "owner@example.test").await;
     let owner_token = owner["access_token"].as_str().expect("token");
 
     let (status, created) = call(
@@ -343,7 +359,7 @@ async fn duplicate_and_redundant_invitations_are_rejected(pool: PgPool) {
     let otp = CaptureOtp::default();
     let app = test_app(pool.clone(), otp.clone());
 
-    let owner = signup(&app, &otp, "owner@example.test").await;
+    let owner = signup_with_seats(&app, &otp, &pool, "owner@example.test").await;
     let owner_token = owner["access_token"].as_str().expect("token");
     let tenant_id = tenant_of(&app, owner_token).await;
 
@@ -385,9 +401,9 @@ async fn duplicate_and_redundant_invitations_are_rejected(pool: PgPool) {
 #[sqlx::test(migrations = "../../migrations")]
 async fn invitations_are_listed_until_they_are_accepted(pool: PgPool) {
     let otp = CaptureOtp::default();
-    let app = test_app(pool, otp.clone());
+    let app = test_app(pool.clone(), otp.clone());
 
-    let owner = signup(&app, &otp, "owner@example.test").await;
+    let owner = signup_with_seats(&app, &otp, &pool, "owner@example.test").await;
     let owner_token = owner["access_token"].as_str().expect("token");
 
     let (status, created) = call(

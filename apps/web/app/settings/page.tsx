@@ -1,11 +1,11 @@
 "use client";
 
-import { ApiError } from "@takar/api-client";
+import { ApiError, type Subscription } from "@takar/api-client";
 import { useEffect, useState } from "react";
 
 import { api } from "@/lib/api";
-import { normalizeDecimal } from "@/lib/format";
-import { useI18n } from "@/lib/i18n";
+import { formatDateTime, normalizeDecimal } from "@/lib/format";
+import { fill, useI18n, type Dictionary } from "@/lib/i18n";
 import { readToken } from "@/lib/session";
 import { useMe } from "@/lib/use-me";
 
@@ -17,12 +17,13 @@ const MIN_WINDOW_DAYS = 1;
 const MAX_WINDOW_DAYS = 365;
 
 export default function SettingsPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { state: session, reload: reloadSession, signOut } = useMe();
 
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [rate, setRate] = useState("");
   const [windowDays, setWindowDays] = useState("");
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -36,13 +37,13 @@ export default function SettingsPage() {
 
     let active = true;
 
-    api
-      .getSettings(token)
-      .then((settings) => {
+    Promise.all([api.getSettings(token), api.getSubscription(token)])
+      .then(([settings, plan]) => {
         if (!active) return;
         setLoad({ status: "ready" });
         setRate(trimDecimal(settings.labor_rate_per_hour));
         setWindowDays(String(settings.usage_window_days));
+        setSubscription(plan);
       })
       .catch(() => {
         if (active) setLoad({ status: "error" });
@@ -254,11 +255,117 @@ export default function SettingsPage() {
                 )}
               </form>
             )}
+
+            {load.status === "ready" && subscription && (
+              <section className="settings__card plan">
+                <div className="settings__intro">
+                  <h2>{t.settings.plan.title}</h2>
+                  <p>{t.settings.plan.hint}</p>
+                </div>
+
+                <div className="plan__head">
+                  <span className="pill pill--safe">
+                    {planName(t, subscription.plan)}
+                  </span>
+                  {subscription.trial_ends_at && (
+                    <span className="plan__trial">
+                      {fill(
+                        isPast(subscription.trial_ends_at)
+                          ? t.settings.plan.trialEnded
+                          : t.settings.plan.trialEnds,
+                        {
+                          date: formatDateTime(
+                            subscription.trial_ends_at,
+                            locale,
+                          ),
+                        },
+                      )}
+                    </span>
+                  )}
+                </div>
+
+                <dl className="plan__usage">
+                  <Usage
+                    label={t.settings.plan.users}
+                    used={subscription.usage.users}
+                    limit={subscription.limits.users}
+                    of={t.settings.plan.of}
+                    unlimited={t.settings.plan.unlimited}
+                  />
+                  <Usage
+                    label={t.settings.plan.materials}
+                    used={subscription.usage.materials}
+                    limit={subscription.limits.materials}
+                    of={t.settings.plan.of}
+                    unlimited={t.settings.plan.unlimited}
+                  />
+                  <Usage
+                    label={t.settings.plan.recipes}
+                    used={subscription.usage.recipes}
+                    limit={subscription.limits.recipes}
+                    of={t.settings.plan.of}
+                    unlimited={t.settings.plan.unlimited}
+                  />
+                </dl>
+              </section>
+            )}
           </div>
         </AppShell>
       )}
     </>
   );
+}
+
+type UsageProps = {
+  label: string;
+  used: number;
+  limit: number | null;
+  of: string;
+  unlimited: string;
+};
+
+function Usage({ label, used, limit, of, unlimited }: UsageProps) {
+  const full = limit !== null && used >= limit;
+
+  return (
+    <div className="plan__row">
+      <dt>{label}</dt>
+      <dd>
+        <span>{limit === null ? fill(unlimited, { used }) : fill(of, { used, limit })}</span>
+        {limit !== null && (
+          <span
+            className={full ? "plan__bar plan__bar--full" : "plan__bar"}
+            aria-hidden="true"
+          >
+            <span
+              style={{
+                width: `${Math.min(100, Math.round((used / Math.max(limit, 1)) * 100))}%`,
+              }}
+            />
+          </span>
+        )}
+      </dd>
+    </div>
+  );
+}
+
+function planName(t: Dictionary, plan: string): string {
+  switch (plan) {
+    case "trial":
+      return t.settings.plan.trial;
+    case "starter":
+      return t.settings.plan.starter;
+    case "pro":
+      return t.settings.plan.pro;
+    case "business":
+      return t.settings.plan.business;
+    default:
+      return plan;
+  }
+}
+
+function isPast(value: string): boolean {
+  return new Date(value).getTime() < Date.now();
 }
 
 // Drops trailing zeros so the input shows "60000", not "60000.00".
