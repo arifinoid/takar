@@ -18,6 +18,7 @@ pub mod sales_import;
 pub mod settings;
 pub mod spreadsheet;
 pub mod stock;
+pub mod subscription;
 pub mod sync;
 
 use std::sync::Arc;
@@ -68,6 +69,7 @@ pub fn router(state: AppState) -> Router {
         .merge(products::routes())
         .merge(purchasing::routes())
         .merge(reports::routes())
+        .merge(subscription::routes())
         .merge(sales::routes())
         .merge(sales_import::routes())
         .merge(recipes::routes())

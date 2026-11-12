@@ -20,6 +20,7 @@ use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::auth::guard::{CanReadRecipes, CanWriteRecipes, Require};
+use crate::subscription::ensure_capacity;
 use crate::{error::ApiError, AppState};
 
 #[derive(Debug, Serialize)]
@@ -271,6 +272,29 @@ pub async fn create_recipe(
 
     ensure_product(&mut tx, auth.tenant_id, product_id).await?;
     ensure_materials(&mut tx, auth.tenant_id, &items).await?;
+
+    // A new version replaces the previous one, so only the first recipe for a
+    // product consumes a slot. Editing a recipe must never be blocked by a
+    // plan cap.
+    let has_active: bool = sqlx::query_scalar(
+        "select exists (
+             select 1 from recipes
+             where tenant_id = $1 and product_id = $2 and is_active
+         )",
+    )
+    .bind(auth.tenant_id)
+    .bind(product_id)
+    .fetch_one(&mut *tx)
+    .await?;
+
+    if !has_active {
+        ensure_capacity(
+            &mut tx,
+            auth.tenant_id,
+            takar_domain::plan::Resource::Recipes,
+        )
+        .await?;
+    }
 
     let (version,): (i32,) =
         sqlx::query_as("select coalesce(max(version), 0) + 1 from recipes where product_id = $1")

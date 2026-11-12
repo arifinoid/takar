@@ -54,6 +54,8 @@ function recipeError(t: Dictionary, cause: unknown): string {
         return t.products.errors.duplicateMaterial;
       case "invalid_material":
         return t.products.errors.invalidMaterial;
+      case "plan_limit_reached":
+        return t.products.errors.planLimit;
       case "permission_denied":
         return t.products.errors.forbidden;
     }

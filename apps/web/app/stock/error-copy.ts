@@ -25,6 +25,8 @@ export function stockError(t: Dictionary, cause: unknown): string {
       return t.stock.errors.invalidMinStock;
     case "invalid_shelf_life":
       return t.stock.errors.invalidShelfLife;
+    case "plan_limit_reached":
+      return t.stock.errors.planLimit;
     default:
       return t.stock.errors.generic;
   }

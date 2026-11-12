@@ -263,6 +263,28 @@ export type BusinessReport = {
   products: ProductMargin[];
 };
 
+export type SubscriptionLimits = {
+  users: number | null;
+  materials: number | null;
+  recipes: number | null;
+  warehouses: number | null;
+};
+
+export type SubscriptionUsage = {
+  users: number;
+  materials: number;
+  recipes: number;
+  warehouses: number;
+};
+
+export type Subscription = {
+  plan: string;
+  trial_ends_at: string | null;
+  /** Null means the plan does not cap that resource. */
+  limits: SubscriptionLimits;
+  usage: SubscriptionUsage;
+};
+
 export type TenantSettings = {
   labor_rate_per_hour: string;
   /** Days of movement history purchase recommendations average over. */
@@ -627,6 +649,10 @@ export class ApiClient {
       `/sales/import?format=csv&tz_offset=${tzOffset}`,
       { method: "POST", token, raw: csv },
     );
+  }
+
+  getSubscription(token: string): Promise<Subscription> {
+    return this.request<Subscription>("/subscription", { token });
   }
 
   getBusinessReport(token: string): Promise<BusinessReport> {

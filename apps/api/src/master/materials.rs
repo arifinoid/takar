@@ -16,6 +16,7 @@ use uuid::Uuid;
 
 use super::units::UnitRef;
 use crate::auth::guard::{CanReadMaterials, CanWriteMaterials, Require};
+use crate::subscription::ensure_capacity;
 use crate::{error::ApiError, AppState};
 
 #[derive(Debug, Serialize)]
@@ -177,6 +178,13 @@ pub async fn create_material(
     if let Some(supplier_id) = body.default_supplier_id {
         ensure_supplier(&mut tx, auth.tenant_id, supplier_id).await?;
     }
+
+    ensure_capacity(
+        &mut tx,
+        auth.tenant_id,
+        takar_domain::plan::Resource::Materials,
+    )
+    .await?;
 
     let (id,): (Uuid,) = sqlx::query_as(
         "insert into materials
