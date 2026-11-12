@@ -95,6 +95,9 @@ struct Line {
     product_id: Uuid,
     qty: Decimal,
     price: Decimal,
+    /// The product's HPP when the sale was written. Null when it had never
+    /// been produced, because there is no cost to snapshot yet.
+    unit_cost: Option<Decimal>,
 }
 
 type SaleRow = (
@@ -208,6 +211,22 @@ pub(crate) async fn write_sale(
         .map(|(id, name, price, stock)| (id, (name, price, stock)))
         .collect();
 
+    // The newest finished cost per product. A sale stores it, so a later run at
+    // a different cost never rewrites this sale's margin.
+    let costs: HashMap<Uuid, Decimal> = sqlx::query_as(
+        "select distinct on (product_id) product_id, unit_cost
+         from production_orders
+         where tenant_id = $1 and product_id = any($2) and status = 'done'
+           and unit_cost is not null
+         order by product_id, produced_on desc, created_at desc",
+    )
+    .bind(tenant_id)
+    .bind(&ids)
+    .fetch_all(&mut **tx)
+    .await?
+    .into_iter()
+    .collect();
+
     let mut lines = Vec::with_capacity(body.items.len());
     let mut shortages = Vec::new();
 
@@ -233,6 +252,7 @@ pub(crate) async fn write_sale(
             product_id: item.product_id,
             qty: item.qty,
             price: item.price.unwrap_or(*sell_price),
+            unit_cost: costs.get(&item.product_id).copied(),
         });
     }
 
@@ -267,14 +287,15 @@ pub(crate) async fn write_sale(
 
     for line in &lines {
         sqlx::query(
-            "insert into sale_items (sale_id, tenant_id, product_id, qty, price)
-             values ($1, $2, $3, $4, $5)",
+            "insert into sale_items (sale_id, tenant_id, product_id, qty, price, unit_cost)
+             values ($1, $2, $3, $4, $5, $6)",
         )
         .bind(sale_id)
         .bind(tenant_id)
         .bind(line.product_id)
         .bind(line.qty)
         .bind(line.price)
+        .bind(line.unit_cost)
         .execute(&mut **tx)
         .await?;
 

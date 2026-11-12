@@ -411,6 +411,38 @@ export const en = {
       generic: "Could not record the sale. Try again.",
     },
   },
+  reports: {
+    title: "Business summary",
+    subtitle: "Stock, waste and margin over the last {days} days.",
+    loading: "Loading the summary…",
+    error: "Could not load the summary.",
+    retry: "Try again",
+    stock: {
+      title: "Stock value",
+      materials: "Ingredients",
+      products: "Finished goods",
+    },
+    waste: {
+      title: "Waste",
+      movements: "{count} write-offs in this window",
+      empty: "Nothing wasted in this window.",
+    },
+    products: {
+      title: "Margin per product",
+      product: "Product",
+      price: "Sell price",
+      cost: "HPP",
+      unitMargin: "Margin / unit",
+      sold: "Sold",
+      revenue: "Revenue",
+      margin: "Margin",
+      noCost: "No HPP yet",
+      incomplete: "Some sales have no cost",
+      costNote:
+        "Margin uses the HPP stored when each sale was written, so a later price change never rewrites it.",
+      empty: "No products yet.",
+    },
+  },
   settings: {
     title: "Settings",
     subtitle:

@@ -28,6 +28,7 @@ type Active =
   | "products"
   | "pos"
   | "purchasing"
+  | "reports"
   | "settings";
 
 type Item = {
@@ -97,7 +98,12 @@ export function AppShell({ me, active, onSignOut, children }: Props) {
           icon: Truck,
           href: "/purchasing",
         },
-        { key: "reports", label: t.nav.reports, icon: BarChart3 },
+        {
+          key: "reports",
+          label: t.nav.reports,
+          icon: BarChart3,
+          href: "/reports",
+        },
       ],
     },
     {

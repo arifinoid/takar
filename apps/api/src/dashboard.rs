@@ -105,8 +105,8 @@ pub async fn overview(
 
     let (materials, below_min, out_of_stock, stock_value, active_batches, expiring, expired): SummaryRow =
         sqlx::query_as(
-            "with levels as (
-                 select m.id, m.min_stock, m.last_cost,
+             "with levels as (
+                 select m.id, m.min_stock,
                         coalesce(sum(b.qty_remaining), 0)::numeric(18,3) as on_hand
                  from materials m
                  left join material_batches b
@@ -133,7 +133,12 @@ pub async fn overview(
              select (select count(*) from levels),
                     (select count(*) from levels where on_hand < min_stock),
                     (select count(*) from levels where on_hand = 0 and min_stock > 0),
-                    (select coalesce(sum(on_hand * last_cost), 0)::numeric(18,2) from levels),
+                    -- Valued at the cost each batch was received at, not the
+                    -- material's latest price: a new purchase must not revalue
+                    -- stock that was already on the shelf.
+                    (select coalesce(sum(b.qty_remaining * b.unit_cost), 0)::numeric(18,2)
+                     from material_batches b
+                     where b.tenant_id = $1 and b.qty_remaining > 0),
                     batches.active_batches,
                     batches.expiring,
                     batches.expired

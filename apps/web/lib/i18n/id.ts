@@ -410,6 +410,38 @@ export const id: Dictionary = {
       generic: "Gagal mencatat penjualan. Coba lagi.",
     },
   },
+  reports: {
+    title: "Ringkasan usaha",
+    subtitle: "Stok, susut, dan margin {days} hari terakhir.",
+    loading: "Memuat ringkasan…",
+    error: "Gagal memuat ringkasan.",
+    retry: "Coba lagi",
+    stock: {
+      title: "Nilai stok",
+      materials: "Bahan baku",
+      products: "Produk jadi",
+    },
+    waste: {
+      title: "Susut",
+      movements: "{count} pencatatan susut pada periode ini",
+      empty: "Tidak ada susut pada periode ini.",
+    },
+    products: {
+      title: "Margin per produk",
+      product: "Produk",
+      price: "Harga jual",
+      cost: "HPP",
+      unitMargin: "Margin / unit",
+      sold: "Terjual",
+      revenue: "Omzet",
+      margin: "Margin",
+      noCost: "HPP belum ada",
+      incomplete: "Sebagian penjualan tanpa biaya",
+      costNote:
+        "Margin memakai HPP yang tersimpan saat penjualan dicatat, jadi perubahan harga berikutnya tidak menulis ulang angka lama.",
+      empty: "Belum ada produk.",
+    },
+  },
   settings: {
     title: "Pengaturan",
     subtitle:
