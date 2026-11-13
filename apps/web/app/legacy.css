@@ -666,24 +666,6 @@ h1 {
 }
 
 
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.chip {
-  background: var(--brand-soft);
-  border-radius: 999px;
-  color: var(--brand);
-  font-size: 10.5px;
-  font-weight: 600;
-  padding: 4px 9px;
-}
-
 @media (max-width: 960px) {
   .auth {
     grid-template-columns: 1fr;
@@ -962,35 +944,6 @@ h1 {
   padding: 10px 12px;
 }
 
-
-.pill {
-  border-radius: 999px;
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 9px;
-  white-space: nowrap;
-}
-
-.pill--critical {
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.pill--warning {
-  background: var(--amber-soft);
-  color: var(--amber);
-}
-
-.pill--safe {
-  background: var(--brand-soft);
-  color: var(--brand);
-}
-
-.pill--neutral {
-  background: var(--surface-alt);
-  color: var(--ink3);
-}
 
 .icon-btn {
   align-items: center;
@@ -1492,133 +1445,7 @@ h1 {
   margin-top: 2px;
 }
 
-/* Plan card ---------------------------------------------------------- */
 
-.plan {
-  max-width: 520px;
-}
-
-.plan__head {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.plan__trial {
-  color: var(--ink3);
-  font-size: 11px;
-}
-
-.plan__usage {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0;
-}
-
-.plan__row {
-  align-items: center;
-  display: grid;
-  gap: 10px;
-  grid-template-columns: 110px minmax(0, 1fr);
-}
-
-.plan__row dt {
-  color: var(--ink2);
-  font-size: 11px;
-}
-
-.plan__row dd {
-  align-items: center;
-  display: flex;
-  gap: 10px;
-  margin: 0;
-}
-
-.plan__row dd > span:first-child {
-  font-size: 11.5px;
-  font-variant-numeric: tabular-nums;
-  min-width: 72px;
-}
-
-.plan__bar {
-  background: var(--surface-alt);
-  border-radius: 999px;
-  display: block;
-  flex: 1;
-  height: 6px;
-  overflow: hidden;
-}
-
-.plan__bar > span {
-  background: var(--brand);
-  display: block;
-  height: 100%;
-}
-
-.plan__bar--full > span {
-  background: var(--amber);
-}
-
-/* Settings page ------------------------------------------------------ */
-
-.settings {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-width: 720px;
-}
-
-.settings__header h1 {
-  font-size: 23px;
-  letter-spacing: -0.02em;
-  margin: 0;
-}
-
-.settings__sub {
-  color: var(--ink2);
-  font-size: 12px;
-  margin: 4px 0 0;
-}
-
-.settings__card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 18px;
-}
-
-.settings__intro h2 {
-  font-size: 14px;
-  margin: 0;
-}
-
-.settings__intro p {
-  color: var(--ink2);
-  font-size: 12px;
-  line-height: 1.55;
-  margin: 6px 0 0;
-  max-width: 60ch;
-}
-
-.settings__form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.settings__form .field {
-  max-width: 320px;
-}
-
-.settings__actions {
-  display: flex;
-  justify-content: flex-end;
-}
 
 /* Responsive --------------------------------------------------------- */
 
@@ -1711,11 +1538,6 @@ h1 {
 }
 
 @media (max-width: 860px) {
-  .plan__head {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
 
   .recipe-form__head {
     display: none;
@@ -1730,12 +1552,6 @@ h1 {
   }
 }
 
-
-@media (max-width: 860px) {
-  .settings__header h1 {
-    font-size: 20px;
-  }
-}
 
 
 
