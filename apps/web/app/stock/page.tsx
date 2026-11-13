@@ -12,6 +12,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { LoadingRegion, SkeletonTable } from "@/components/skeletons";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { daysUntil, formatDate, formatMoney, formatQty } from "@/lib/format";
 import { fill, useI18n, type Dictionary } from "@/lib/i18n";
@@ -300,16 +302,16 @@ export default function StockPage() {
     return `${date} · ${fill(t.stock.meta.daysLeft, { days })}`;
   }
 
-  function statusOf(row: StockLevel): { label: string; tone: string } {
+  function statusOf(row: StockLevel): { label: string; tone: Tone } {
     if (row.below_min) {
-      return { label: t.stock.status.critical, tone: "critical" };
+      return { label: t.stock.status.critical, tone: "danger" };
     }
 
     if (row.nearest_expiry) {
       const days = daysUntil(row.nearest_expiry);
 
       if (days < 0) {
-        return { label: t.stock.status.expired, tone: "critical" };
+        return { label: t.stock.status.expired, tone: "danger" };
       }
 
       if (days <= 7) {
@@ -324,7 +326,7 @@ export default function StockPage() {
       return { label: t.stock.status.empty, tone: "neutral" };
     }
 
-    return { label: t.stock.status.safe, tone: "safe" };
+    return { label: t.stock.status.safe, tone: "brand" };
   }
 
   const batchCount = data?.batches.length ?? 0;
@@ -364,114 +366,121 @@ export default function StockPage() {
   return (
     <>
       {session.status === "loading" && (
-        <main className="page">
-          <p className="lede">{t.stock.loading}</p>
+        <main className="mx-auto max-w-[1200px] p-6">
+          <LoadingRegion label={t.stock.loading}>
+            <SkeletonTable rows={6} columns={5} />
+          </LoadingRegion>
         </main>
       )}
 
       {session.status === "error" && (
-        <main className="page">
-          <div className="card">
-            <p>{t.dashboard.error}</p>
-            <button
-              className="btn btn--secondary"
+        <main className="mx-auto max-w-[1200px] p-6">
+          <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
+            <p className="text-sm text-muted-foreground">{t.dashboard.error}</p>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="self-start"
               type="button"
               onClick={() => void reloadSession()}
             >
               {t.dashboard.retry}
-            </button>
+            </Button>
           </div>
         </main>
       )}
 
       {session.status === "ready" && (
         <AppShell me={session.me} active="stock" onSignOut={signOut}>
-          <div className="stock">
-            <header className="stock__header">
+          <div className="flex max-w-[1200px] flex-col gap-4">
+            <header className="flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h1>{t.stock.title}</h1>
-                <p className="stock__sub">{subtitle}</p>
+                <h1 className="text-xl font-extrabold tracking-tight sm:text-3xl">
+                  {t.stock.title}
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
               </div>
-              <div className="stock__actions">
+              <div className="flex w-full flex-wrap items-center gap-2.5 sm:w-auto">
                 {canWriteMaterials && (
-                  <button
-                    className="btn btn--ghost"
+                  <Button
+                    variant="ghost"
+                    className="flex-1 sm:flex-none"
                     type="button"
                     onClick={() => setMaterialOpen(true)}
                   >
                     <Plus size={15} />
                     {t.stock.newMaterial}
-                  </button>
+                  </Button>
                 )}
                 {canWriteBatches && (
-                  <button
-                    className="btn btn--primary"
+                  <Button
+                    className="flex-1 sm:flex-none"
                     type="button"
                     onClick={() => setStockInFor(null)}
                   >
                     <Plus size={15} />
                     {t.stock.stockIn}
-                  </button>
+                  </Button>
                 )}
               </div>
             </header>
 
             {summary && (
-              <section className="summary" aria-label={t.stock.title}>
-                <div className="summary__metric">
-                  <span>{t.stock.summary.value}</span>
-                  <strong>{formatMoney(summary.value, locale)}</strong>
-                </div>
-                <span className="summary__divider" />
-                <div className="summary__metric">
-                  <span>{t.stock.summary.belowMin}</span>
-                  <strong className={summary.belowMin > 0 ? "is-danger" : undefined}>
-                    {fill(t.stock.summary.materials, { count: summary.belowMin })}
-                  </strong>
-                </div>
-                <span className="summary__divider" />
-                <div className="summary__metric">
-                  <span>{t.stock.summary.expiring}</span>
-                  <strong
-                    className={summary.expiringBatches > 0 ? "is-warning" : undefined}
-                  >
-                    {fill(t.stock.summary.batches, { count: summary.expiringBatches })}
-                  </strong>
-                </div>
-                <span className="summary__divider" />
-                <div className="summary__metric">
-                  <span>{t.stock.summary.avgAge}</span>
-                  <strong>
-                    {summary.averageAge === null
-                      ? t.stock.summary.empty
-                      : fill(t.stock.summary.days, { count: summary.averageAge })}
-                  </strong>
-                </div>
+              <section
+                aria-label={t.stock.title}
+                className="grid grid-cols-2 gap-y-3 rounded-xl border border-border bg-card px-2 py-2 sm:grid-cols-4 sm:py-3.5"
+              >
+                <Metric label={t.stock.summary.value}>
+                  {formatMoney(summary.value, locale)}
+                </Metric>
+                <Metric
+                  label={t.stock.summary.belowMin}
+                  tone={summary.belowMin > 0 ? "danger" : undefined}
+                >
+                  {fill(t.stock.summary.materials, { count: summary.belowMin })}
+                </Metric>
+                <Metric
+                  label={t.stock.summary.expiring}
+                  tone={summary.expiringBatches > 0 ? "warning" : undefined}
+                >
+                  {fill(t.stock.summary.batches, {
+                    count: summary.expiringBatches,
+                  })}
+                </Metric>
+                <Metric label={t.stock.summary.avgAge}>
+                  {summary.averageAge === null
+                    ? t.stock.summary.empty
+                    : fill(t.stock.summary.days, { count: summary.averageAge })}
+                </Metric>
               </section>
             )}
 
             {queue.length > 0 && (
-              <section className="outbox" aria-live="polite">
-                <div className="outbox__head">
-                  <div>
-                    <strong>
+              <section
+                aria-live="polite"
+                className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-col gap-0.5">
+                    <strong className="text-sm font-bold">
                       {fill(t.stock.offline.title, { count: queue.length })}
                     </strong>
-                    <span>
+                    <span className="text-xs text-muted-foreground">
                       {syncing ? t.stock.offline.syncing : t.stock.offline.body}
                     </span>
                   </div>
-                  <button
-                    className="btn btn--secondary"
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     type="button"
                     onClick={() => void syncNow()}
                     disabled={syncing || !navigator.onLine}
                   >
                     {t.stock.offline.sync}
-                  </button>
+                  </Button>
                 </div>
 
-                <ul className="outbox__list">
+                <ul className="flex list-none flex-col gap-1.5 p-0">
                   {queue.map((entry) => {
                     const material = data?.materials.find(
                       (item) => item.id === entry.payload.material_id,
@@ -479,18 +488,18 @@ export default function StockPage() {
 
                     return (
                       <li
-                        className={`outbox__item${
+                        className={`flex items-center justify-between gap-2.5 rounded-lg px-2.5 py-2 ${
                           entry.status === "failed"
-                            ? " outbox__item--failed"
-                            : ""
+                            ? "bg-danger-soft"
+                            : "bg-surface-alt"
                         }`}
                         key={entry.client_ref}
                       >
-                        <div className="outbox__what">
-                          <strong>
+                        <div className="flex min-w-0 flex-col gap-px">
+                          <strong className="truncate text-xs font-bold">
                             {material?.name ?? entry.payload.material_id}
                           </strong>
-                          <span>
+                          <span className="text-2xs text-ink-3 tabular-nums">
                             {formatQty(entry.payload.qty_received, locale)}{" "}
                             {material?.base_unit.code ?? ""} ·{" "}
                             {formatMoney(
@@ -501,20 +510,24 @@ export default function StockPage() {
                         </div>
 
                         {entry.status === "failed" ? (
-                          <div className="outbox__actions">
-                            <span className="pill pill--critical">
+                          <div className="flex items-center gap-1.5">
+                            <Badge variant="danger">
                               {offlineReason(t, entry.code)}
-                            </span>
-                            <button
-                              className="icon-btn"
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-7 rounded-md"
                               type="button"
                               onClick={() => void retryQueued(entry.client_ref)}
                               aria-label={t.stock.offline.retry}
                             >
                               <RotateCcw size={14} />
-                            </button>
-                            <button
-                              className="icon-btn"
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-7 rounded-md"
                               type="button"
                               onClick={() =>
                                 void dismissQueued(entry.client_ref)
@@ -522,12 +535,12 @@ export default function StockPage() {
                               aria-label={t.stock.offline.dismiss}
                             >
                               <X size={14} />
-                            </button>
+                            </Button>
                           </div>
                         ) : (
-                          <span className="pill pill--warning">
+                          <Badge variant="warning">
                             {t.stock.offline.pending}
-                          </span>
+                          </Badge>
                         )}
                       </li>
                     );
@@ -537,55 +550,78 @@ export default function StockPage() {
             )}
 
             {notice && (
-              <p className="notice" role="status">
+              <p
+                role="status"
+                className="rounded-lg bg-brand-soft px-3 py-2.5 text-xs font-medium text-brand"
+              >
                 {notice}
               </p>
             )}
 
             {load.status === "loading" && (
               <LoadingRegion label={t.stock.loading}>
-                <div className="card">
+                <div className="rounded-xl border border-border bg-card p-5">
                   <SkeletonTable rows={6} columns={5} />
                 </div>
               </LoadingRegion>
             )}
 
             {load.status === "error" && (
-              <div className="card">
-                <p>{t.stock.error}</p>
-                <button
-                  className="btn btn--secondary"
+              <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
+                <p className="text-sm text-muted-foreground">{t.stock.error}</p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="self-start"
                   type="button"
                   onClick={() => void fetchData()}
                 >
                   {t.stock.retry}
-                </button>
+                </Button>
               </div>
             )}
 
             {data && (
-              <section className="stock__card">
-                <div className="stock__toolbar">
-                  <div className="stock__tabs" role="tablist" aria-label={t.stock.title}>
-                    {filterTabs.map((tab) => (
-                      <button
-                        key={tab.key}
-                        type="button"
-                        role="tab"
-                        aria-selected={filter === tab.key}
-                        className={`stock__tab${
-                          filter === tab.key ? " stock__tab--active" : ""
-                        }`}
-                        onClick={() => setFilter(tab.key)}
-                      >
-                        <span className="stock__tab-long">{tab.label}</span>
-                        <span className="stock__tab-short">{tab.short}</span>
-                        <span className="stock__tab-count">{counts[tab.key]}</span>
-                      </button>
-                    ))}
+              <section className="overflow-hidden rounded-xl border border-border bg-card">
+                <div className="flex flex-col items-stretch gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div
+                    role="tablist"
+                    aria-label={t.stock.title}
+                    className="flex gap-4.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  >
+                    {filterTabs.map((tab) => {
+                      const active = filter === tab.key;
+
+                      return (
+                        <button
+                          key={tab.key}
+                          type="button"
+                          role="tab"
+                          aria-selected={active}
+                          className={`flex shrink-0 items-center gap-1.5 border-b-2 pb-2 pt-0.5 text-sm whitespace-nowrap transition-colors duration-150 ${
+                            active
+                              ? "border-brand font-bold text-ink"
+                              : "border-transparent font-semibold text-ink-3 hover:text-ink-2"
+                          }`}
+                          onClick={() => setFilter(tab.key)}
+                        >
+                          <span className="hidden sm:inline">{tab.label}</span>
+                          <span className="sm:hidden">{tab.short}</span>
+                          <span
+                            className={`rounded-full px-1.5 py-px text-2xs font-bold ${
+                              active
+                                ? "bg-brand-soft text-brand"
+                                : "bg-surface-alt text-ink-3"
+                            }`}
+                          >
+                            {counts[tab.key]}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
 
-                  <label className="stock__search">
+                  <label className="flex w-full items-center gap-2 rounded-lg border border-border bg-surface-alt px-2.5 py-1.5 text-ink-3 sm:w-[220px]">
                     <Search size={14} />
                     <input
                       type="search"
@@ -593,39 +629,48 @@ export default function StockPage() {
                       onChange={(event) => setQuery(event.target.value)}
                       placeholder={t.stock.searchPlaceholder}
                       aria-label={t.stock.searchPlaceholder}
+                      className="w-full border-0 bg-transparent text-sm text-ink outline-none placeholder:text-ink-3"
                     />
                   </label>
                 </div>
 
                 {data.stock.length === 0 ? (
-                  <div className="stock__empty">
-                    <h2>{t.stock.empty.title}</h2>
-                    <p>{t.stock.empty.body}</p>
+                  <div className="flex flex-col items-center gap-2 px-5 py-11 text-center">
+                    <h2 className="text-lg font-bold">{t.stock.empty.title}</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {t.stock.empty.body}
+                    </p>
                     {canWriteMaterials && (
-                      <div className="stock__empty-actions">
-                        <button
-                          className="btn btn--primary"
+                      <div className="mt-1 flex flex-wrap justify-center gap-2">
+                        <Button
                           type="button"
                           onClick={() => setMaterialOpen(true)}
                         >
                           {t.stock.empty.cta}
-                        </button>
-                        <Link className="btn btn--ghost" href="/onboarding">
-                          {t.stock.empty.template}
-                        </Link>
+                        </Button>
+                        <Button variant="ghost" asChild>
+                          <Link href="/onboarding">{t.stock.empty.template}</Link>
+                        </Button>
                       </div>
                     )}
                   </div>
                 ) : visible.length === 0 ? (
-                  <p className="stock__empty-line">{t.stock.empty.filtered}</p>
+                  <p className="px-4 py-6 text-sm text-muted-foreground">
+                    {t.stock.empty.filtered}
+                  </p>
                 ) : (
-                  <div className="stock-table" role="table" aria-label={t.stock.title}>
-                    <div className="stock-table__head" role="row">
+                  <div role="table" aria-label={t.stock.title}>
+                    <div
+                      role="row"
+                      className="hidden items-center gap-3 bg-surface-alt px-4 py-2.5 text-2xs font-bold tracking-wider text-ink-3 uppercase sm:grid sm:grid-cols-[minmax(0,1fr)_110px_70px_62px_130px_96px_104px_40px]"
+                    >
                       <span role="columnheader">{t.stock.table.material}</span>
                       <span role="columnheader">{t.stock.table.stock}</span>
                       <span role="columnheader">{t.stock.table.min}</span>
                       <span role="columnheader">{t.stock.table.batches}</span>
-                      <span role="columnheader">{t.stock.table.nearestExpiry}</span>
+                      <span role="columnheader">
+                        {t.stock.table.nearestExpiry}
+                      </span>
                       <span role="columnheader">{t.stock.table.status}</span>
                       <span role="columnheader">{t.stock.table.value}</span>
                       <span role="columnheader" aria-hidden="true" />
@@ -635,55 +680,92 @@ export default function StockPage() {
                       const status = statusOf(row);
 
                       return (
-                        <div className="stock-row" role="row" key={row.material_id}>
-                          <div className="stock-row__material" role="cell">
+                        <div
+                          role="row"
+                          key={row.material_id}
+                          className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 border-b border-border px-3.5 py-3 text-sm last:border-b-0 sm:grid-cols-[minmax(0,1fr)_110px_70px_62px_130px_96px_104px_40px] sm:gap-3 sm:px-4"
+                        >
+                          <div
+                            role="cell"
+                            className="flex min-w-0 flex-col gap-px"
+                          >
                             <button
-                              className="stock-row__name"
                               type="button"
+                              className="cursor-pointer text-left text-sm font-semibold text-ink transition-colors duration-150 hover:text-brand"
                               onClick={() => setPanelId(row.material_id)}
                             >
                               {row.name}
                             </button>
-                            <span>
+                            <span className="truncate text-2xs text-ink-3">
                               {supplierName(
                                 materialById.get(row.material_id)
                                   ?.default_supplier_id ?? null,
                               )}
                             </span>
                           </div>
-                          <div className="stock-row__stock" role="cell">
-                            <strong>{formatQty(row.on_hand, locale)}</strong>
-                            <span>{row.base_unit.code}</span>
-                          </div>
-                          <div className="stock-row__min" role="cell">
-                            {formatQty(row.min_stock, locale)} {row.base_unit.code}
-                          </div>
-                          <div className="stock-row__batches" role="cell">
-                            {row.active_batches}
-                          </div>
-                          <div className="stock-row__expiry" role="cell">
-                            {expiryLabel(row)}
-                          </div>
-                          <div className="stock-row__status" role="cell">
-                            <span className={`pill pill--${status.tone}`}>
-                              {status.label}
+
+                          <div
+                            role="cell"
+                            className="flex items-baseline justify-self-end gap-1 sm:justify-self-auto"
+                          >
+                            <strong className="text-sm font-bold tabular-nums">
+                              {formatQty(row.on_hand, locale)}
+                            </strong>
+                            <span className="text-xs text-ink-3">
+                              {row.base_unit.code}
                             </span>
                           </div>
-                          <div className="stock-row__value" role="cell">
+
+                          <div
+                            role="cell"
+                            className="hidden text-xs text-ink-3 sm:block"
+                          >
+                            {formatQty(row.min_stock, locale)}{" "}
+                            {row.base_unit.code}
+                          </div>
+
+                          <div
+                            role="cell"
+                            className="hidden text-xs text-ink-2 sm:block"
+                          >
+                            {row.active_batches}
+                          </div>
+
+                          <div
+                            role="cell"
+                            className="hidden text-xs text-ink-2 sm:block"
+                          >
+                            {expiryLabel(row)}
+                          </div>
+
+                          <div role="cell">
+                            <Badge variant={status.tone}>{status.label}</Badge>
+                          </div>
+
+                          <div
+                            role="cell"
+                            className="hidden text-xs font-semibold tabular-nums sm:block"
+                          >
                             {formatMoney(
                               Number(row.on_hand) * Number(row.last_cost),
                               locale,
                             )}
                           </div>
-                          <div className="stock-row__action" role="cell">
-                            <button
-                              className="icon-btn"
+
+                          <div
+                            role="cell"
+                            className="hidden justify-self-end sm:block"
+                          >
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-7 rounded-md"
                               type="button"
                               onClick={() => setPanelId(row.material_id)}
                               aria-label={t.stock.panel.title}
                             >
                               <Ellipsis size={15} />
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       );
@@ -743,6 +825,37 @@ export default function StockPage() {
         </AppShell>
       )}
     </>
+  );
+}
+
+type Tone = "danger" | "warning" | "brand" | "neutral";
+
+function Metric({
+  label,
+  tone,
+  children,
+}: {
+  label: string;
+  tone?: "danger" | "warning";
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5 px-3 sm:border-l sm:border-border sm:px-4 sm:first:border-l-0">
+      <span className="text-2xs font-semibold tracking-wide text-ink-3">
+        {label}
+      </span>
+      <strong
+        className={`text-base font-bold tabular-nums ${
+          tone === "danger"
+            ? "text-destructive"
+            : tone === "warning"
+              ? "text-warning"
+              : ""
+        }`}
+      >
+        {children}
+      </strong>
+    </div>
   );
 }
 
