@@ -15,6 +15,11 @@ import {
   SkeletonForm,
   SkeletonStats,
 } from "@/components/skeletons";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import {
   formatDate,
@@ -27,6 +32,7 @@ import {
 import { fill, useI18n, type Dictionary } from "@/lib/i18n";
 import { readToken } from "@/lib/session";
 import { useMe } from "@/lib/use-me";
+import { cn } from "@/lib/utils";
 
 import { AppShell } from "../app-shell";
 
@@ -213,34 +219,44 @@ export default function ProductionPage() {
   return (
     <>
       {session.status === "loading" && (
-        <main className="page">
-          <p className="lede">{t.production.loading}</p>
+        <main className="mx-auto max-w-[1100px] p-6">
+          <LoadingRegion
+            label={t.production.loading}
+            className="flex flex-col gap-4"
+          >
+            <SkeletonForm fields={3} />
+            <SkeletonStats count={3} />
+          </LoadingRegion>
         </main>
       )}
 
       {session.status === "error" && (
-        <main className="page">
-          <div className="card">
-            <p>{t.dashboard.error}</p>
-            <button
-              className="btn btn--secondary"
+        <main className="mx-auto max-w-[1100px] p-6">
+          <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
+            <p className="text-sm text-muted-foreground">{t.dashboard.error}</p>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="self-start"
               type="button"
               onClick={() => void reloadSession()}
             >
               {t.dashboard.retry}
-            </button>
+            </Button>
           </div>
         </main>
       )}
 
       {session.status === "ready" && (
         <AppShell me={session.me} active="production" onSignOut={signOut}>
-          <div className="production">
-            <header className="production__header">
-              <div>
-                <h1>{t.production.title}</h1>
-                <p className="production__sub">{t.production.subtitle}</p>
-              </div>
+          <div className="flex max-w-[1100px] flex-col gap-4">
+            <header>
+              <h1 className="text-xl font-extrabold tracking-tight sm:text-3xl">
+                {t.production.title}
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t.production.subtitle}
+              </p>
             </header>
 
             {load.status === "loading" && (
@@ -254,97 +270,94 @@ export default function ProductionPage() {
             )}
 
             {load.status === "error" && (
-              <div className="card">
-                <p>{t.production.error}</p>
-                <button
-                  className="btn btn--secondary"
+              <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
+                <p className="text-sm text-muted-foreground">
+                  {t.production.error}
+                </p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="self-start"
                   type="button"
                   onClick={() => void fetchProducts()}
                 >
                   {t.production.retry}
-                </button>
+                </Button>
               </div>
             )}
 
             {load.status === "ready" && producible.length === 0 && (
-              <div className="production__empty">
-                <ChefHat size={26} />
-                <h2>{t.production.empty.title}</h2>
-                <p>{t.production.empty.body}</p>
-                <Link className="btn btn--secondary" href="/products">
-                  {t.production.empty.action}
-                </Link>
+              <div className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card px-5 py-10 text-center">
+                <ChefHat size={26} className="text-brand" />
+                <h2 className="text-lg font-bold">{t.production.empty.title}</h2>
+                <p className="max-w-[46ch] text-sm leading-relaxed text-muted-foreground">
+                  {t.production.empty.body}
+                </p>
+                <Button variant="secondary" asChild className="mt-1.5">
+                  <Link href="/products">{t.production.empty.action}</Link>
+                </Button>
               </div>
             )}
 
             {load.status === "ready" && producible.length > 0 && order && (
-              <section className="production__result">
-                <span className="production__result-icon">
+              <section className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card px-5 py-9 text-center">
+                <span className="flex size-12 items-center justify-center rounded-full bg-brand-soft text-brand">
                   <CheckCircle2 size={24} />
                 </span>
-                <h2>{t.production.result.title}</h2>
-                <p>
+                <h2 className="mt-1 text-xl font-bold">
+                  {t.production.result.title}
+                </h2>
+                <p className="text-sm text-muted-foreground">
                   {fill(t.production.result.body, {
                     qty: formatQty(order.actual_qty, locale),
                     product: order.product_name,
                   })}
                 </p>
 
-                <div className="production__result-grid">
-                  <div>
-                    <span>{t.production.result.hpp}</span>
-                    <strong>{formatMoney(Number(order.unit_cost), locale)}</strong>
-                  </div>
-                  <div>
-                    <span>{t.production.result.materialCost}</span>
-                    <strong>
-                      {formatMoney(Number(order.material_cost), locale)}
-                    </strong>
-                  </div>
-                  <div>
-                    <span>{t.production.result.margin}</span>
-                    <strong
-                      className={
-                        resultMargin !== null && resultMargin < 0
-                          ? "is-danger"
-                          : undefined
-                      }
-                    >
-                      {resultMargin === null
-                        ? t.production.result.noPrice
-                        : formatMoney(resultMargin, locale)}
-                    </strong>
-                  </div>
+                <div className="mt-3.5 mb-1 grid w-full max-w-[620px] gap-2.5 sm:grid-cols-3">
+                  <ResultStat label={t.production.result.hpp}>
+                    {formatMoney(Number(order.unit_cost), locale)}
+                  </ResultStat>
+                  <ResultStat label={t.production.result.materialCost}>
+                    {formatMoney(Number(order.material_cost), locale)}
+                  </ResultStat>
+                  <ResultStat
+                    label={t.production.result.margin}
+                    tone={resultMargin !== null && resultMargin < 0 ? "danger" : undefined}
+                  >
+                    {resultMargin === null
+                      ? t.production.result.noPrice
+                      : formatMoney(resultMargin, locale)}
+                  </ResultStat>
                 </div>
 
-                <div className="production__result-foot">
-                  <span>
+                <div className="mt-2.5 flex w-full max-w-[620px] flex-col items-center gap-3.5 sm:flex-row sm:justify-between">
+                  <span className="text-2xs text-ink-3">
                     {formatDate(order.produced_on, locale)} ·{" "}
                     {fill(t.production.result.recipe, {
                       version: order.recipe_version,
                     })}
                   </span>
-                  <button
-                    className="btn btn--primary"
-                    type="button"
-                    onClick={resetRun}
-                  >
+                  <Button type="button" onClick={resetRun}>
                     {t.production.result.newRun}
-                  </button>
+                  </Button>
                 </div>
               </section>
             )}
 
             {load.status === "ready" && producible.length > 0 && !order && (
               <>
-                <form className="production__card" onSubmit={runPreview}>
-                  <div className="production__form-grid">
-                    <label className="field">
-                      <span className="field__label">
+                <form
+                  className="flex flex-col gap-3.5 rounded-xl border border-border bg-card p-4.5"
+                  onSubmit={runPreview}
+                >
+                  <div className="grid gap-3.5 sm:grid-cols-[1.2fr_0.8fr_0.8fr]">
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="production-product">
                         {t.production.form.product}
-                      </span>
-                      <select
-                        className="field__input"
+                      </Label>
+                      <Select
+                        id="production-product"
                         value={productId}
                         onChange={(event) => chooseProduct(event.target.value)}
                         required
@@ -357,13 +370,15 @@ export default function ProductionPage() {
                             {product.name} · v{product.current_recipe_version}
                           </option>
                         ))}
-                      </select>
-                    </label>
+                      </Select>
+                    </div>
 
-                    <label className="field">
-                      <span className="field__label">{t.production.form.qty}</span>
-                      <input
-                        className="field__input"
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="production-qty">
+                        {t.production.form.qty}
+                      </Label>
+                      <Input
+                        id="production-qty"
                         type="text"
                         inputMode="decimal"
                         autoComplete="off"
@@ -372,142 +387,130 @@ export default function ProductionPage() {
                         onChange={(event) => changeQty(event.target.value)}
                         required
                       />
-                      <span className="field__hint">
+                      <span className="text-2xs leading-snug text-ink-3">
                         {t.production.form.qtyHint}
                       </span>
-                    </label>
+                    </div>
 
-                    <label className="field">
-                      <span className="field__label">
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="production-date">
                         {t.production.form.producedOn}
-                      </span>
-                      <input
-                        className="field__input"
+                      </Label>
+                      <Input
+                        id="production-date"
                         type="date"
                         value={producedOn}
                         onChange={(event) => setProducedOn(event.target.value)}
                         required
                       />
-                    </label>
+                    </div>
                   </div>
 
-                  <div className="production__form-actions">
-                    <button
-                      className="btn btn--primary"
-                      type="submit"
-                      disabled={busy !== null}
-                    >
+                  <div className="flex justify-end">
+                    <Button type="submit" disabled={busy !== null}>
                       {busy === "preview"
                         ? t.production.form.previewing
                         : t.production.form.preview}
-                    </button>
+                    </Button>
                   </div>
                 </form>
 
                 {error && (
-                  <p className="form__error" role="alert">
+                  <p
+                    role="alert"
+                    className="rounded-lg bg-danger-soft px-3 py-2.5 text-xs text-destructive"
+                  >
                     {error}
                   </p>
                 )}
 
                 {!preview && !error && (
-                  <p className="production__hint">{t.production.form.hint}</p>
+                  <p className="text-xs text-ink-3">{t.production.form.hint}</p>
                 )}
 
                 {preview && (
-                  <section className="production__card production__plan">
-                    <header className="production__plan-head">
+                  <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4.5">
+                    <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <h2>{t.production.plan.title}</h2>
-                        <p>
+                        <h2 className="text-lg font-bold">
+                          {t.production.plan.title}
+                        </h2>
+                        <p className="mt-0.5 text-xs text-ink-3">
                           {fill(t.production.plan.subtitle, {
                             version: preview.recipe_version,
                             yield: formatQty(preview.yield_qty, locale),
                           })}
                         </p>
                       </div>
-                      <span className="production__plan-qty">
+                      <Badge variant="brand" className="px-2.5 py-1 text-xs">
                         {formatQty(preview.qty, locale)}{" "}
                         {t.production.plan.units}
-                      </span>
+                      </Badge>
                     </header>
 
                     {cost && (
-                      <div className="costs">
-                        <div className="cost cost--primary">
-                          <span>{t.production.plan.hpp}</span>
-                          <strong>{formatMoney(Number(cost.unit), locale)}</strong>
-                        </div>
-                        <div className="cost">
-                          <span>{t.production.plan.sellPrice}</span>
-                          <strong>
-                            {formatMoney(Number(cost.sellPrice), locale)}
-                          </strong>
-                        </div>
-                        <div className="cost">
-                          <span>{t.production.plan.margin}</span>
-                          <strong
-                            className={
-                              Number(cost.margin) < 0 ? "is-danger" : undefined
-                            }
-                          >
-                            {formatMoney(Number(cost.margin), locale)}
-                          </strong>
-                          {cost.marginPct && (
-                            <em>
-                              {fill(t.production.plan.marginPct, {
-                                pct: formatPercent(cost.marginPct, locale),
-                              })}
-                            </em>
-                          )}
-                        </div>
-                        <div className="cost">
-                          <span>{t.production.plan.materialCost}</span>
-                          <strong>
-                            {formatMoney(Number(cost.material), locale)}
-                          </strong>
-                        </div>
-                        <div className="cost">
-                          <span>{t.production.plan.laborCost}</span>
-                          <strong>
-                            {formatMoney(Number(cost.labor), locale)}
-                          </strong>
-                          {Number(cost.labor) > 0 ? (
-                            <em>
-                              {fill(t.production.plan.laborDetail, {
-                                minutes: cost.laborMinutes,
-                                rate: formatMoney(
-                                  Number(cost.laborRate),
-                                  locale,
-                                ),
-                              })}
-                            </em>
-                          ) : (
-                            <em>{t.production.plan.noLaborRate}</em>
-                          )}
-                        </div>
+                      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+                        <CostTile label={t.production.plan.hpp} primary>
+                          {formatMoney(Number(cost.unit), locale)}
+                        </CostTile>
+                        <CostTile label={t.production.plan.sellPrice}>
+                          {formatMoney(Number(cost.sellPrice), locale)}
+                        </CostTile>
+                        <CostTile
+                          label={t.production.plan.margin}
+                          tone={Number(cost.margin) < 0 ? "danger" : undefined}
+                          note={
+                            cost.marginPct
+                              ? fill(t.production.plan.marginPct, {
+                                  pct: formatPercent(cost.marginPct, locale),
+                                })
+                              : undefined
+                          }
+                        >
+                          {formatMoney(Number(cost.margin), locale)}
+                        </CostTile>
+                        <CostTile label={t.production.plan.materialCost}>
+                          {formatMoney(Number(cost.material), locale)}
+                        </CostTile>
+                        <CostTile
+                          label={t.production.plan.laborCost}
+                          note={
+                            Number(cost.labor) > 0
+                              ? fill(t.production.plan.laborDetail, {
+                                  minutes: cost.laborMinutes,
+                                  rate: formatMoney(
+                                    Number(cost.laborRate),
+                                    locale,
+                                  ),
+                                })
+                              : t.production.plan.noLaborRate
+                          }
+                        >
+                          {formatMoney(Number(cost.labor), locale)}
+                        </CostTile>
                       </div>
                     )}
 
                     <div
-                      className={`production__banner ${
+                      className={cn(
+                        "flex items-start gap-2.5 rounded-lg px-3 py-2.5 text-xs",
                         preview.can_produce
-                          ? "production__banner--ready"
-                          : "production__banner--danger"
-                      }`}
+                          ? "bg-brand-soft text-brand"
+                          : "bg-danger-soft text-destructive",
+                      )}
                     >
                       {preview.can_produce ? (
-                        <CheckCircle2 size={17} />
+                        <CheckCircle2 size={17} className="mt-px shrink-0" />
                       ) : (
-                        <AlertTriangle size={17} />
+                        <AlertTriangle size={17} className="mt-px shrink-0" />
                       )}
                       <div>
-                        <strong>
+                        <strong className="block text-xs font-bold">
                           {preview.can_produce
                             ? t.production.plan.readyTitle
                             : t.production.plan.shortageTitle}
                         </strong>
-                        <span>
+                        <span className="text-muted-foreground">
                           {preview.can_produce
                             ? t.production.plan.readyBody
                             : t.production.plan.shortageBody}
@@ -515,49 +518,52 @@ export default function ProductionPage() {
                       </div>
                     </div>
 
-                    <div className="plan">
+                    <div className="flex flex-col gap-2.5">
                       {preview.materials.map((material) => {
                         const short = Number(material.shortfall) > 0;
 
                         return (
-                          <div className="plan__item" key={material.material_id}>
-                            <div className="plan__head">
-                              <div className="plan__name">
-                                <strong>{material.material_name}</strong>
-                                <span>{material.unit_code}</span>
+                          <div
+                            className="overflow-hidden rounded-lg border border-border"
+                            key={material.material_id}
+                          >
+                            <div className="flex flex-col items-start gap-3 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="flex items-baseline gap-1.5">
+                                <strong className="text-sm font-semibold">
+                                  {material.material_name}
+                                </strong>
+                                <span className="text-2xs text-ink-3">
+                                  {material.unit_code}
+                                </span>
                               </div>
-                              <div className="plan__numbers">
-                                <div className="plan__number">
-                                  <span>{t.production.plan.required}</span>
-                                  <strong>
-                                    {formatQty(material.required, locale)}
-                                  </strong>
-                                </div>
-                                <div className="plan__number">
-                                  <span>{t.production.plan.available}</span>
-                                  <strong>
-                                    {formatQty(material.available, locale)}
-                                  </strong>
-                                </div>
-                                <div
-                                  className={`plan__number${
-                                    short ? " is-danger" : ""
-                                  }`}
-                                >
-                                  <span>{t.production.plan.shortfall}</span>
-                                  <strong>
-                                    {short
+                              <div className="flex w-full flex-wrap gap-3.5 sm:w-auto sm:justify-end sm:gap-4.5">
+                                <PlanNumber
+                                  label={t.production.plan.required}
+                                  value={formatQty(material.required, locale)}
+                                />
+                                <PlanNumber
+                                  label={t.production.plan.available}
+                                  value={formatQty(material.available, locale)}
+                                />
+                                <PlanNumber
+                                  label={t.production.plan.shortfall}
+                                  value={
+                                    short
                                       ? formatQty(material.shortfall, locale)
-                                      : "—"}
-                                  </strong>
-                                </div>
+                                      : "—"
+                                  }
+                                  tone={short ? "danger" : undefined}
+                                />
                               </div>
                             </div>
 
                             {material.batches.length > 0 && (
-                              <ul className="plan__batches">
+                              <ul className="list-none border-t border-dashed border-border px-3 py-2">
                                 {material.batches.map((batch) => (
-                                  <li className="plan__batch" key={batch.batch_id}>
+                                  <li
+                                    className="flex items-center justify-between gap-2.5 py-0.5 text-2xs text-ink-3"
+                                    key={batch.batch_id}
+                                  >
                                     <span>
                                       {batch.expires_at
                                         ? fill(t.production.plan.expires, {
@@ -568,7 +574,7 @@ export default function ProductionPage() {
                                           })
                                         : t.production.plan.noExpiry}
                                     </span>
-                                    <strong>
+                                    <strong className="font-semibold text-ink-2">
                                       {formatQty(batch.qty, locale)}{" "}
                                       {material.unit_code} ·{" "}
                                       {formatMoney(
@@ -586,12 +592,13 @@ export default function ProductionPage() {
                       })}
                     </div>
 
-                    <div className="production__confirm">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                       {!canWrite && (
-                        <span>{t.production.plan.readOnly}</span>
+                        <span className="text-xs text-ink-3 sm:mr-auto">
+                          {t.production.plan.readOnly}
+                        </span>
                       )}
-                      <button
-                        className="btn btn--primary"
+                      <Button
                         type="button"
                         onClick={() => void confirm()}
                         disabled={
@@ -601,7 +608,7 @@ export default function ProductionPage() {
                         {busy === "save"
                           ? t.production.form.confirming
                           : t.production.form.confirm}
-                      </button>
+                      </Button>
                     </div>
                   </section>
                 )}
@@ -611,5 +618,96 @@ export default function ProductionPage() {
         </AppShell>
       )}
     </>
+  );
+}
+
+function CostTile({
+  label,
+  note,
+  tone,
+  primary,
+  children,
+}: {
+  label: string;
+  note?: string;
+  tone?: "danger";
+  primary?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-0.5 rounded-lg border px-3 py-3",
+        primary
+          ? "border-[#c8e2d6] bg-brand-soft"
+          : "border-border bg-surface-alt",
+      )}
+    >
+      <span className="text-2xs font-semibold tracking-wide text-ink-3 uppercase">
+        {label}
+      </span>
+      <strong
+        className={cn(
+          "text-base font-bold tabular-nums",
+          primary && "text-brand",
+          tone === "danger" && "text-destructive",
+        )}
+      >
+        {children}
+      </strong>
+      {note && <em className="text-2xs font-normal text-ink-2">{note}</em>}
+    </div>
+  );
+}
+
+function PlanNumber({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "danger";
+}) {
+  return (
+    <div className="flex flex-col gap-px text-left sm:text-right">
+      <span className="text-2xs font-semibold tracking-wide text-ink-3">
+        {label}
+      </span>
+      <strong
+        className={cn(
+          "text-xs font-bold tabular-nums",
+          tone === "danger" && "text-destructive",
+        )}
+      >
+        {value}
+      </strong>
+    </div>
+  );
+}
+
+function ResultStat({
+  label,
+  tone,
+  children,
+}: {
+  label: string;
+  tone?: "danger";
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5 rounded-lg border border-border bg-surface-alt p-3">
+      <span className="text-2xs font-semibold text-ink-3 uppercase">
+        {label}
+      </span>
+      <strong
+        className={cn(
+          "text-base font-bold tabular-nums",
+          tone === "danger" && "text-destructive",
+        )}
+      >
+        {children}
+      </strong>
+    </div>
   );
 }
