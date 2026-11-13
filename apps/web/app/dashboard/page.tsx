@@ -12,6 +12,10 @@ import {
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { LoadingRegion, SkeletonStats } from "@/components/skeletons";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import {
   formatDate,
@@ -61,19 +65,23 @@ export default function DashboardPage() {
   return (
     <>
       {session.status !== "ready" && (
-        <main className="page">
+        <main className="mx-auto max-w-[1200px] p-6">
           {session.status === "loading" ? (
-            <p className="lede">{t.dashboard.loading}</p>
+            <DashboardSkeleton label={t.dashboard.loading} />
           ) : (
-            <div className="card">
-              <p>{t.dashboard.error}</p>
-              <button
-                className="btn btn--secondary"
+            <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
+              <p className="text-sm text-muted-foreground">
+                {t.dashboard.error}
+              </p>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="self-start"
                 type="button"
                 onClick={() => void reloadSession()}
               >
                 {t.dashboard.retry}
-              </button>
+              </Button>
             </div>
           )}
         </main>
@@ -81,152 +89,154 @@ export default function DashboardPage() {
 
       {session.status === "ready" && (
         <AppShell me={session.me} active="overview" onSignOut={signOut}>
-          <div className="dash">
-            <header className="dash__header">
+          <div className="flex max-w-[1200px] flex-col gap-4">
+            <header className="flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h1>{t.dashboard.title}</h1>
-                <p className="dash__sub">
+                <h1 className="text-xl font-extrabold tracking-tight sm:text-3xl">
+                  {t.dashboard.title}
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
                   {fill(t.dashboard.subtitle, {
                     tenant: session.me.tenant.name,
                     date: formatLongDate(new Date(), locale),
                   })}
                 </p>
               </div>
-              <Link className="btn btn--ghost dash__open" href="/stock">
-                {t.dashboard.openStock}
-                <ChevronRight size={15} />
-              </Link>
+              <Button variant="ghost" asChild>
+                <Link href="/stock">
+                  {t.dashboard.openStock}
+                  <ChevronRight size={15} />
+                </Link>
+              </Button>
             </header>
 
-            {load.status === "loading" && <Skeleton />}
+            {load.status === "loading" && (
+              <DashboardSkeleton label={t.dashboard.loading} />
+            )}
 
             {load.status === "error" && (
-              <div className="card">
-                <p>{t.dashboard.error}</p>
-                <button
-                  className="btn btn--secondary"
+              <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
+                <p className="text-sm text-muted-foreground">
+                  {t.dashboard.error}
+                </p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="self-start"
                   type="button"
                   onClick={() => void fetchData()}
                 >
                   {t.dashboard.retry}
-                </button>
+                </Button>
               </div>
             )}
 
             {data && data.summary.materials === 0 && (
-              <div className="card dash__empty">
-                <h2>{t.dashboard.emptyTenant.title}</h2>
-                <p>{t.dashboard.emptyTenant.body}</p>
-                <Link className="btn btn--primary" href="/onboarding">
-                  {t.dashboard.emptyTenant.cta}
-                </Link>
+              <div className="flex flex-col items-start gap-2 rounded-xl border border-border bg-card p-5">
+                <h2 className="text-lg font-bold">
+                  {t.dashboard.emptyTenant.title}
+                </h2>
+                <p className="max-w-[46ch] text-sm text-muted-foreground">
+                  {t.dashboard.emptyTenant.body}
+                </p>
+                <Button asChild className="mt-1">
+                  <Link href="/onboarding">{t.dashboard.emptyTenant.cta}</Link>
+                </Button>
               </div>
             )}
 
             {data && data.summary.materials > 0 && (
               <>
-                <section className="metrics" aria-label={t.dashboard.title}>
-                  <article
-                    className={`metric${data.summary.below_min > 0 ? " metric--danger" : ""}`}
-                  >
-                    <div className="metric__top">
-                      <AlertTriangle size={14} />
-                      <span>{t.dashboard.metrics.belowMin}</span>
-                    </div>
-                    <strong>{data.summary.below_min}</strong>
-                    <span className="metric__unit">
-                      {fill(t.dashboard.metrics.belowMinHint, {
-                        count: data.summary.out_of_stock,
-                      })}
-                    </span>
-                  </article>
+                <section
+                  aria-label={t.dashboard.title}
+                  className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+                >
+                  <Metric
+                    icon={<AlertTriangle size={14} />}
+                    label={t.dashboard.metrics.belowMin}
+                    value={data.summary.below_min}
+                    hint={fill(t.dashboard.metrics.belowMinHint, {
+                      count: data.summary.out_of_stock,
+                    })}
+                    tone={data.summary.below_min > 0 ? "danger" : undefined}
+                  />
 
-                  <article
-                    className={`metric${data.summary.expiring > 0 ? " metric--warning" : ""}`}
-                  >
-                    <div className="metric__top">
-                      <Clock3 size={14} />
-                      <span>
-                        {fill(t.dashboard.metrics.expiring, {
-                          days: data.summary.horizon_days,
-                        })}
-                      </span>
-                    </div>
-                    <strong>{data.summary.expiring}</strong>
-                    <span className="metric__unit">
-                      {t.dashboard.metrics.expiringUnit}
-                    </span>
-                  </article>
+                  <Metric
+                    icon={<Clock3 size={14} />}
+                    label={fill(t.dashboard.metrics.expiring, {
+                      days: data.summary.horizon_days,
+                    })}
+                    value={data.summary.expiring}
+                    hint={t.dashboard.metrics.expiringUnit}
+                    tone={data.summary.expiring > 0 ? "warning" : undefined}
+                  />
 
-                  <article
-                    className={`metric${data.summary.expired > 0 ? " metric--danger" : ""}`}
-                  >
-                    <div className="metric__top">
-                      <CalendarX2 size={14} />
-                      <span>{t.dashboard.metrics.expired}</span>
-                    </div>
-                    <strong>{data.summary.expired}</strong>
-                    <span className="metric__unit">
-                      {t.dashboard.metrics.expiredUnit}
-                    </span>
-                  </article>
+                  <Metric
+                    icon={<CalendarX2 size={14} />}
+                    label={t.dashboard.metrics.expired}
+                    value={data.summary.expired}
+                    hint={t.dashboard.metrics.expiredUnit}
+                    tone={data.summary.expired > 0 ? "danger" : undefined}
+                  />
 
-                  <article className="metric">
-                    <div className="metric__top">
-                      <Wallet size={14} />
-                      <span>{t.dashboard.metrics.value}</span>
-                    </div>
-                    <strong className="metric__money">
-                      {formatMoney(Number(data.summary.stock_value), locale)}
-                    </strong>
-                    <span className="metric__unit">
-                      {t.dashboard.metrics.valueUnit}
-                    </span>
-                  </article>
+                  <Metric
+                    icon={<Wallet size={14} />}
+                    label={t.dashboard.metrics.value}
+                    value={formatMoney(Number(data.summary.stock_value), locale)}
+                    hint={t.dashboard.metrics.valueUnit}
+                    money
+                  />
                 </section>
 
-                <section className="dash__grid">
-                  <article className="panel">
-                    <header className="panel__head">
+                <section className="grid gap-3 lg:grid-cols-2">
+                  <article className="flex flex-col overflow-hidden rounded-xl border border-border bg-card">
+                    <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
                       <div>
-                        <h2>{t.dashboard.critical.title}</h2>
-                        <p>{t.dashboard.critical.subtitle}</p>
+                        <h2 className="text-base font-bold tracking-tight">
+                          {t.dashboard.critical.title}
+                        </h2>
+                        <p className="mt-0.5 text-2xs text-ink-3">
+                          {t.dashboard.critical.subtitle}
+                        </p>
                       </div>
-                      <Link className="panel__link" href="/stock">
+                      <PanelLink href="/stock">
                         {t.dashboard.critical.seeAll}
-                        <ChevronRight size={13} />
-                      </Link>
+                      </PanelLink>
                     </header>
 
                     {data.critical.length === 0 ? (
-                      <div className="panel__empty">
-                        <CheckCircle2 size={18} />
-                        <strong>{t.dashboard.critical.emptyTitle}</strong>
-                        <span>{t.dashboard.critical.empty}</span>
-                      </div>
+                      <PanelEmpty
+                        title={t.dashboard.critical.emptyTitle}
+                        body={t.dashboard.critical.empty}
+                      />
                     ) : (
-                      <ul className="dlist">
+                      <ul className="flex list-none flex-col py-1">
                         {data.critical.map((row) => {
                           const empty = Number(row.on_hand) === 0;
 
                           return (
-                            <li key={row.material_id}>
+                            <li
+                              key={row.material_id}
+                              className="border-t border-border first:border-t-0"
+                            >
                               <Link
-                                className="drow"
+                                className="flex items-center justify-between gap-3 px-4 py-2.5 text-inherit no-underline transition-colors duration-150 hover:bg-surface-alt focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand"
                                 href={`/stock?material=${row.material_id}`}
                               >
-                                <div className="drow__main">
-                                  <div className="drow__line">
-                                    <strong>{row.name}</strong>
-                                    <span
-                                      className={`pill pill--${empty ? "critical" : "warning"}`}
+                                <div className="flex min-w-0 flex-col gap-0.5">
+                                  <div className="flex min-w-0 items-center gap-2">
+                                    <strong className="truncate text-sm font-semibold">
+                                      {row.name}
+                                    </strong>
+                                    <Badge
+                                      variant={empty ? "danger" : "warning"}
                                     >
                                       {empty
                                         ? t.dashboard.critical.out
                                         : t.dashboard.critical.low}
-                                    </span>
+                                    </Badge>
                                   </div>
-                                  <span className="drow__meta">
+                                  <span className="text-2xs text-ink-3">
                                     {fill(t.dashboard.critical.detail, {
                                       onHand: formatQty(row.on_hand, locale),
                                       min: formatQty(row.min_stock, locale),
@@ -234,15 +244,15 @@ export default function DashboardPage() {
                                     })}
                                   </span>
                                 </div>
-                                <div className="drow__side">
-                                  <strong className="drow__amount">
+                                <div className="flex flex-col items-end gap-0.5 text-right">
+                                  <strong className="text-xs font-semibold whitespace-nowrap text-destructive">
                                     {fill(t.dashboard.critical.short, {
                                       qty: formatQty(row.shortfall, locale),
                                       unit: row.base_unit.code,
                                     })}
                                   </strong>
                                   {row.nearest_expiry && (
-                                    <span className="drow__date">
+                                    <span className="text-2xs whitespace-nowrap text-ink-3">
                                       {formatDate(row.nearest_expiry, locale)}
                                     </span>
                                   )}
@@ -255,45 +265,48 @@ export default function DashboardPage() {
                     )}
                   </article>
 
-                  <article className="panel">
-                    <header className="panel__head">
+                  <article className="flex flex-col overflow-hidden rounded-xl border border-border bg-card">
+                    <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
                       <div>
-                        <h2>{t.dashboard.expiringList.title}</h2>
-                        <p>
+                        <h2 className="text-base font-bold tracking-tight">
+                          {t.dashboard.expiringList.title}
+                        </h2>
+                        <p className="mt-0.5 text-2xs text-ink-3">
                           {fill(t.dashboard.expiringList.subtitle, {
                             days: data.summary.horizon_days,
                           })}
                         </p>
                       </div>
-                      <Link className="panel__link" href="/stock">
+                      <PanelLink href="/stock">
                         {t.dashboard.critical.seeAll}
-                        <ChevronRight size={13} />
-                      </Link>
+                      </PanelLink>
                     </header>
 
                     {data.expiring.length === 0 ? (
-                      <div className="panel__empty">
-                        <CheckCircle2 size={18} />
-                        <strong>{t.dashboard.expiringList.emptyTitle}</strong>
-                        <span>
-                          {fill(t.dashboard.expiringList.empty, {
-                            days: data.summary.horizon_days,
-                          })}
-                        </span>
-                      </div>
+                      <PanelEmpty
+                        title={t.dashboard.expiringList.emptyTitle}
+                        body={fill(t.dashboard.expiringList.empty, {
+                          days: data.summary.horizon_days,
+                        })}
+                      />
                     ) : (
-                      <ul className="dlist">
+                      <ul className="flex list-none flex-col py-1">
                         {data.expiring.map((row) => (
-                          <li key={row.batch_id}>
+                          <li
+                            key={row.batch_id}
+                            className="border-t border-border first:border-t-0"
+                          >
                             <Link
-                              className="drow"
+                              className="flex items-center justify-between gap-3 px-4 py-2.5 text-inherit no-underline transition-colors duration-150 hover:bg-surface-alt focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand"
                               href={`/stock?material=${row.material_id}`}
                             >
-                              <div className="drow__main">
-                                <div className="drow__line">
-                                  <strong>{row.material_name}</strong>
+                              <div className="flex min-w-0 flex-col gap-0.5">
+                                <div className="flex min-w-0 items-center gap-2">
+                                  <strong className="truncate text-sm font-semibold">
+                                    {row.material_name}
+                                  </strong>
                                 </div>
-                                <span className="drow__meta">
+                                <span className="text-2xs text-ink-3">
                                   {fill(t.dashboard.expiringList.detail, {
                                     qty: formatQty(row.qty_remaining, locale),
                                     unit: row.base_unit.code,
@@ -304,9 +317,11 @@ export default function DashboardPage() {
                                   })}
                                 </span>
                               </div>
-                              <div className="drow__side">
-                                <span
-                                  className={`pill pill--${row.days_left < 0 ? "critical" : "warning"}`}
+                              <div className="flex flex-col items-end gap-0.5 text-right">
+                                <Badge
+                                  variant={
+                                    row.days_left < 0 ? "danger" : "warning"
+                                  }
                                 >
                                   {row.days_left < 0
                                     ? fill(t.dashboard.expiringList.overdue, {
@@ -317,8 +332,8 @@ export default function DashboardPage() {
                                       : fill(t.dashboard.expiringList.daysLeft, {
                                           days: row.days_left,
                                         })}
-                                </span>
-                                <span className="drow__date">
+                                </Badge>
+                                <span className="text-2xs whitespace-nowrap text-ink-3">
                                   {formatDate(row.expires_at, locale)}
                                 </span>
                               </div>
@@ -338,39 +353,100 @@ export default function DashboardPage() {
   );
 }
 
-/** Placeholder shapes, so a slow connection does not flash an empty screen. */
-function Skeleton() {
+function Metric({
+  icon,
+  label,
+  value,
+  hint,
+  tone,
+  money,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+  hint: string;
+  tone?: "danger" | "warning";
+  money?: boolean;
+}) {
   return (
-    <div className="dash__skeleton" aria-hidden="true">
-      <div className="metrics">
-        {[0, 1, 2, 3].map((index) => (
-          <article className="metric" key={index}>
-            <span className="skeleton skeleton--label" />
-            <span className="skeleton skeleton--value" />
-            <span className="skeleton skeleton--unit" />
-          </article>
-        ))}
+    <article className="flex flex-col gap-0.5 rounded-xl border border-border bg-card px-3.5 py-3">
+      <div className="flex items-center gap-1.5 text-2xs font-semibold leading-snug text-ink-3">
+        {icon}
+        <span>{label}</span>
       </div>
-      <div className="dash__grid">
-        {[0, 1].map((index) => (
-          <article className="panel" key={index}>
-            <header className="panel__head">
-              <div>
-                <span className="skeleton skeleton--label" />
-                <span className="skeleton skeleton--unit" />
-              </div>
-            </header>
+      <strong
+        className={`font-extrabold tracking-tight tabular-nums ${
+          money ? "text-xl" : "text-2xl"
+        } ${
+          tone === "danger"
+            ? "text-destructive"
+            : tone === "warning"
+              ? "text-warning"
+              : ""
+        }`}
+      >
+        {value}
+      </strong>
+      <span className="text-2xs text-ink-3">{hint}</span>
+    </article>
+  );
+}
+
+function PanelLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex shrink-0 items-center gap-0.5 text-2xs font-semibold whitespace-nowrap text-brand hover:underline"
+    >
+      {children}
+      <ChevronRight size={13} />
+    </Link>
+  );
+}
+
+function PanelEmpty({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-1.5 px-5 py-9 text-center text-ink-3">
+      <CheckCircle2 size={18} className="text-brand" />
+      <strong className="text-sm font-semibold text-ink">{title}</strong>
+      <span className="max-w-[34ch] text-xs leading-relaxed">{body}</span>
+    </div>
+  );
+}
+
+/** Placeholder shapes, so a slow connection does not flash an empty screen. */
+function DashboardSkeleton({ label }: { label: string }) {
+  return (
+    <LoadingRegion label={label} className="flex flex-col gap-4">
+      <SkeletonStats count={4} />
+      <div className="grid gap-3 lg:grid-cols-2">
+        {[0, 1].map((panel) => (
+          <div
+            key={panel}
+            className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4"
+          >
+            <Skeleton className="h-3 w-36" />
             {[0, 1, 2].map((row) => (
-              <div className="drow" key={row}>
-                <div className="drow__main">
-                  <span className="skeleton skeleton--value" />
-                  <span className="skeleton skeleton--unit" />
+              <div
+                key={row}
+                className="flex items-center justify-between gap-3 border-t border-border pt-3"
+              >
+                <div className="flex flex-col gap-1.5">
+                  <Skeleton className="h-3 w-32" />
+                  <Skeleton className="h-2.5 w-24" />
                 </div>
+                <Skeleton className="h-3 w-16" />
               </div>
             ))}
-          </article>
+          </div>
         ))}
       </div>
-    </div>
+    </LoadingRegion>
   );
 }
