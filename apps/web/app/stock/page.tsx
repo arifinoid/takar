@@ -11,6 +11,7 @@ import { Ellipsis, Plus, RotateCcw, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { LoadingRegion, SkeletonTable } from "@/components/skeletons";
 import { api } from "@/lib/api";
 import { daysUntil, formatDate, formatMoney, formatQty } from "@/lib/format";
 import { fill, useI18n, type Dictionary } from "@/lib/i18n";
@@ -541,7 +542,13 @@ export default function StockPage() {
               </p>
             )}
 
-            {load.status === "loading" && <p className="lede">{t.stock.loading}</p>}
+            {load.status === "loading" && (
+              <LoadingRegion label={t.stock.loading}>
+                <div className="card">
+                  <SkeletonTable rows={6} columns={5} />
+                </div>
+              </LoadingRegion>
+            )}
 
             {load.status === "error" && (
               <div className="card">

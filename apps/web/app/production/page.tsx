@@ -10,6 +10,11 @@ import { AlertTriangle, CheckCircle2, ChefHat } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import {
+  LoadingRegion,
+  SkeletonForm,
+  SkeletonStats,
+} from "@/components/skeletons";
 import { api } from "@/lib/api";
 import {
   formatDate,
@@ -239,7 +244,13 @@ export default function ProductionPage() {
             </header>
 
             {load.status === "loading" && (
-              <p className="lede">{t.production.loading}</p>
+              <LoadingRegion
+                label={t.production.loading}
+                className="flex flex-col gap-4"
+              >
+                <SkeletonForm fields={3} />
+                <SkeletonStats count={3} />
+              </LoadingRegion>
             )}
 
             {load.status === "error" && (

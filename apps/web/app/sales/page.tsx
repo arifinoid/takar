@@ -10,6 +10,11 @@ import {
 import { Plus, Receipt, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import {
+  LoadingRegion,
+  SkeletonForm,
+  SkeletonList,
+} from "@/components/skeletons";
 import { api } from "@/lib/api";
 import { formatDateTime, formatMoney, formatQty, normalizeDecimal } from "@/lib/format";
 import { fill, useI18n, type Dictionary } from "@/lib/i18n";
@@ -377,7 +382,15 @@ export default function SalesPage() {
               </p>
             )}
 
-            {load.status === "loading" && <p className="lede">{t.sales.loading}</p>}
+            {load.status === "loading" && (
+              <LoadingRegion
+                label={t.sales.loading}
+                className="flex flex-col gap-4"
+              >
+                <SkeletonForm fields={4} />
+                <SkeletonList rows={3} />
+              </LoadingRegion>
+            )}
 
             {load.status === "error" && (
               <div className="card">

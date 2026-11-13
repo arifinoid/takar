@@ -3,6 +3,11 @@
 import { ApiError, type Subscription } from "@takar/api-client";
 import { useEffect, useState } from "react";
 
+import {
+  LoadingRegion,
+  SkeletonForm,
+  SkeletonList,
+} from "@/components/skeletons";
 import { api } from "@/lib/api";
 import { formatDateTime, normalizeDecimal } from "@/lib/format";
 import { fill, useI18n, type Dictionary } from "@/lib/i18n";
@@ -160,7 +165,13 @@ export default function SettingsPage() {
             )}
 
             {load.status === "loading" && (
-              <p className="lede">{t.settings.loading}</p>
+              <LoadingRegion
+                label={t.settings.loading}
+                className="flex flex-col gap-4"
+              >
+                <SkeletonForm fields={2} />
+                <SkeletonList rows={2} />
+              </LoadingRegion>
             )}
 
             {load.status === "error" && (

@@ -4,6 +4,11 @@ import type { BusinessReport } from "@takar/api-client";
 import { BarChart3 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import {
+  LoadingRegion,
+  SkeletonList,
+  SkeletonStats,
+} from "@/components/skeletons";
 import { api } from "@/lib/api";
 import {
   formatMoney,
@@ -90,7 +95,13 @@ export default function ReportsPage() {
             </header>
 
             {load.status === "loading" && (
-              <p className="lede">{t.reports.loading}</p>
+              <LoadingRegion
+                label={t.reports.loading}
+                className="flex flex-col gap-4"
+              >
+                <SkeletonStats count={3} />
+                <SkeletonList rows={3} />
+              </LoadingRegion>
             )}
 
             {load.status === "error" && (

@@ -4,6 +4,7 @@ import type { Material, Product, Recipe } from "@takar/api-client";
 import { Boxes, ChevronDown, ChevronUp, Pencil, Plus } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { LoadingRegion, SkeletonList } from "@/components/skeletons";
 import { api } from "@/lib/api";
 import { formatMoney, formatQty } from "@/lib/format";
 import { fill, useI18n } from "@/lib/i18n";
@@ -187,7 +188,9 @@ export default function ProductsPage() {
             )}
 
             {load.status === "loading" && (
-              <p className="lede">{t.products.loading}</p>
+              <LoadingRegion label={t.products.loading}>
+                <SkeletonList rows={4} />
+              </LoadingRegion>
             )}
 
             {load.status === "error" && (
