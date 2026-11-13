@@ -3,18 +3,22 @@
 import { ApiError, type Batch, type Material, type Supplier } from "@takar/api-client";
 import { useRef, useState } from "react";
 
+import { Modal } from "@/components/modal";
+import { Button } from "@/components/ui/button";
+import { Field, FormError } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import { addDaysIso, normalizeDecimal, todayIso } from "@/lib/format";
+import { useI18n } from "@/lib/i18n";
 import {
   createClientRef,
   enqueueStockIn,
   offlineQueueAvailable,
 } from "@/lib/outbox";
-import { useI18n } from "@/lib/i18n";
 import { readToken } from "@/lib/session";
 
 import { stockError } from "./error-copy";
-import { Modal } from "@/components/modal";
 
 type Props = {
   materials: Material[];
@@ -164,14 +168,12 @@ export function StockInDialog({
       onClose={onClose}
     >
       {materials.length === 0 ? (
-        <p className="modal__empty">{t.stock.empty.body}</p>
+        <p className="text-sm text-muted-foreground">{t.stock.empty.body}</p>
       ) : (
-        <form className="form" onSubmit={submit}>
-          <div className="form__grid">
-            <label className="field">
-              <span className="field__label">{t.stock.form.material}</span>
-              <select
-                className="field__input"
+        <form className="flex flex-col gap-4" onSubmit={submit}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label={t.stock.form.material}>
+              <Select
                 value={materialId}
                 onChange={(event) => chooseMaterial(event.target.value)}
                 required
@@ -181,13 +183,11 @@ export function StockInDialog({
                     {item.name} ({item.base_unit.code})
                   </option>
                 ))}
-              </select>
-            </label>
+              </Select>
+            </Field>
 
-            <label className="field">
-              <span className="field__label">{t.stock.form.supplier}</span>
-              <select
-                className="field__input"
+            <Field label={t.stock.form.supplier}>
+              <Select
                 value={supplierId}
                 onChange={(event) => setSupplierId(event.target.value)}
               >
@@ -197,38 +197,31 @@ export function StockInDialog({
                     {supplier.name}
                   </option>
                 ))}
-              </select>
-            </label>
+              </Select>
+            </Field>
 
-            <label className="field">
-              <span className="field__label">{t.stock.form.receivedAt}</span>
-              <input
-                className="field__input"
+            <Field label={t.stock.form.receivedAt}>
+              <Input
                 type="date"
                 value={receivedAt}
                 onChange={(event) => chooseReceivedAt(event.target.value)}
                 required
               />
-            </label>
+            </Field>
 
-            <label className="field">
-              <span className="field__label">{t.stock.form.expiresAt}</span>
-              <input
-                className="field__input"
+            <Field
+              label={t.stock.form.expiresAt}
+              hint={t.stock.form.expiresAtHint}
+            >
+              <Input
                 type="date"
                 value={expiresAt}
                 onChange={(event) => setExpiresAt(event.target.value)}
               />
-              <span className="field__hint">{t.stock.form.expiresAtHint}</span>
-            </label>
+            </Field>
 
-            <label className="field">
-              <span className="field__label">
-                {t.stock.form.qty}
-                {unit ? ` (${unit})` : ""}
-              </span>
-              <input
-                className="field__input"
+            <Field label={`${t.stock.form.qty}${unit ? ` (${unit})` : ""}`}>
+              <Input
                 type="text"
                 inputMode="decimal"
                 autoComplete="off"
@@ -237,12 +230,10 @@ export function StockInDialog({
                 onChange={(event) => setQty(event.target.value)}
                 required
               />
-            </label>
+            </Field>
 
-            <label className="field">
-              <span className="field__label">{t.stock.form.unitCost}</span>
-              <input
-                className="field__input"
+            <Field label={t.stock.form.unitCost}>
+              <Input
                 type="text"
                 inputMode="decimal"
                 autoComplete="off"
@@ -251,33 +242,27 @@ export function StockInDialog({
                 onChange={(event) => setUnitCost(event.target.value)}
                 required
               />
-            </label>
+            </Field>
 
-            <label className="field form__wide">
-              <span className="field__label">{t.stock.form.note}</span>
-              <input
-                className="field__input"
+            <Field label={t.stock.form.note} className="sm:col-span-2">
+              <Input
                 type="text"
                 placeholder={t.stock.form.notePlaceholder}
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
               />
-            </label>
+            </Field>
           </div>
 
-          {error && (
-            <p className="form__error" role="alert">
-              {error}
-            </p>
-          )}
+          {error && <FormError>{error}</FormError>}
 
-          <div className="form__actions">
-            <button className="btn btn--ghost" type="button" onClick={onClose}>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" type="button" onClick={onClose}>
               {t.stock.form.cancel}
-            </button>
-            <button className="btn btn--primary" type="submit" disabled={saving}>
+            </Button>
+            <Button type="submit" disabled={saving}>
               {saving ? t.stock.form.saving : t.stock.form.submit}
-            </button>
+            </Button>
           </div>
         </form>
       )}

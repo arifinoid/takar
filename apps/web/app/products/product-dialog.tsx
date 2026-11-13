@@ -4,6 +4,9 @@ import { ApiError, type Product } from "@takar/api-client";
 import { useState } from "react";
 
 import { Modal } from "@/components/modal";
+import { Button } from "@/components/ui/button";
+import { Field, FormError } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import { normalizeDecimal } from "@/lib/format";
 import { useI18n, type Dictionary } from "@/lib/i18n";
@@ -97,36 +100,29 @@ export function ProductDialog({ product, onClose, onSaved }: Props) {
       closeLabel={t.products.form.cancel}
       onClose={onClose}
     >
-      <form className="form" onSubmit={submit}>
-        <div className="form__grid">
-          <label className="field form__wide">
-            <span className="field__label">{t.products.form.name}</span>
-            <input
-              className="field__input"
+      <form className="flex flex-col gap-4" onSubmit={submit}>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={t.products.form.name} className="sm:col-span-2">
+            <Input
               type="text"
               autoComplete="off"
               value={name}
               onChange={(event) => setName(event.target.value)}
               required
             />
-          </label>
+          </Field>
 
-          <label className="field">
-            <span className="field__label">{t.products.form.sku}</span>
-            <input
-              className="field__input"
+          <Field label={t.products.form.sku} hint={t.products.form.skuHint}>
+            <Input
               type="text"
               autoComplete="off"
               value={sku}
               onChange={(event) => setSku(event.target.value)}
             />
-            <span className="field__hint">{t.products.form.skuHint}</span>
-          </label>
+          </Field>
 
-          <label className="field">
-            <span className="field__label">{t.products.form.price}</span>
-            <input
-              className="field__input"
+          <Field label={t.products.form.price} hint={t.products.form.priceHint}>
+            <Input
               type="text"
               inputMode="decimal"
               autoComplete="off"
@@ -134,27 +130,22 @@ export function ProductDialog({ product, onClose, onSaved }: Props) {
               value={price}
               onChange={(event) => setPrice(event.target.value)}
             />
-            <span className="field__hint">{t.products.form.priceHint}</span>
-          </label>
+          </Field>
         </div>
 
-        {error && (
-          <p className="form__error" role="alert">
-            {error}
-          </p>
-        )}
+        {error && <FormError>{error}</FormError>}
 
-        <div className="form__actions">
-          <button className="btn btn--ghost" type="button" onClick={onClose}>
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" type="button" onClick={onClose}>
             {t.products.form.cancel}
-          </button>
-          <button className="btn btn--primary" type="submit" disabled={saving}>
+          </Button>
+          <Button type="submit" disabled={saving}>
             {saving
               ? t.products.form.saving
               : product
                 ? t.products.form.save
                 : t.products.form.create}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

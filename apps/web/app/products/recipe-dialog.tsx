@@ -10,6 +10,10 @@ import { Plus, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { Modal } from "@/components/modal";
+import { Button } from "@/components/ui/button";
+import { Field, FormError } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import { normalizeDecimal } from "@/lib/format";
 import { useI18n, type Dictionary } from "@/lib/i18n";
@@ -63,6 +67,12 @@ function recipeError(t: Dictionary, cause: unknown): string {
 
   return t.products.errors.generic;
 }
+
+const ROW_GRID =
+  "grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_30px] gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,0.8fr)_30px]";
+
+const HEAD_GRID =
+  "hidden gap-2 text-2xs tracking-wide text-ink-3 uppercase sm:grid sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,0.8fr)_30px]";
 
 export function RecipeDialog({
   product,
@@ -216,16 +226,17 @@ export function RecipeDialog({
       onClose={onClose}
     >
       {materials.length === 0 ? (
-        <p className="modal__empty">{t.products.recipeForm.noMaterials}</p>
+        <p className="text-sm text-muted-foreground">
+          {t.products.recipeForm.noMaterials}
+        </p>
       ) : (
-        <form className="form" onSubmit={submit}>
-          <div className="form__grid">
-            <label className="field">
-              <span className="field__label">
-                {t.products.recipeForm.yield}
-              </span>
-              <input
-                className="field__input"
+        <form className="flex flex-col gap-4" onSubmit={submit}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field
+              label={t.products.recipeForm.yield}
+              hint={t.products.recipeForm.yieldHint}
+            >
+              <Input
                 type="text"
                 inputMode="decimal"
                 autoComplete="off"
@@ -234,35 +245,28 @@ export function RecipeDialog({
                 onChange={(event) => setYieldQty(event.target.value)}
                 required
               />
-              <span className="field__hint">
-                {t.products.recipeForm.yieldHint}
-              </span>
-            </label>
+            </Field>
 
-            <label className="field">
-              <span className="field__label">
-                {t.products.recipeForm.labor}
-              </span>
-              <input
-                className="field__input"
+            <Field
+              label={t.products.recipeForm.labor}
+              hint={t.products.recipeForm.laborHint}
+            >
+              <Input
                 type="number"
                 min="0"
                 step="1"
                 value={laborMinutes}
                 onChange={(event) => setLaborMinutes(event.target.value)}
               />
-              <span className="field__hint">
-                {t.products.recipeForm.laborHint}
-              </span>
-            </label>
+            </Field>
           </div>
 
-          <div className="recipe-form">
-            <span className="field__label">
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-semibold text-muted-foreground">
               {t.products.recipeForm.items}
             </span>
 
-            <div className="recipe-form__head">
+            <div className={HEAD_GRID}>
               <span>{t.products.recipeForm.item}</span>
               <span>{t.products.recipeForm.qty}</span>
               <span>{t.products.recipeForm.waste}</span>
@@ -270,28 +274,28 @@ export function RecipeDialog({
             </div>
 
             {rows.map((row) => (
-              <div className="recipe-form__row" key={row.key}>
-                <select
-                  className="field__input"
-                  value={row.materialId}
-                  onChange={(event) =>
-                    updateRow(row.key, { materialId: event.target.value })
-                  }
-                  aria-label={t.products.recipeForm.item}
-                  required
-                >
-                  <option value="">
-                    {t.products.recipeForm.itemPlaceholder}
-                  </option>
-                  {materials.map((material) => (
-                    <option key={material.id} value={material.id}>
-                      {material.name} ({material.base_unit.code})
+              <div className={ROW_GRID} key={row.key}>
+                <div className="col-span-3 sm:col-span-1">
+                  <Select
+                    value={row.materialId}
+                    onChange={(event) =>
+                      updateRow(row.key, { materialId: event.target.value })
+                    }
+                    aria-label={t.products.recipeForm.item}
+                    required
+                  >
+                    <option value="">
+                      {t.products.recipeForm.itemPlaceholder}
                     </option>
-                  ))}
-                </select>
+                    {materials.map((material) => (
+                      <option key={material.id} value={material.id}>
+                        {material.name} ({material.base_unit.code})
+                      </option>
+                    ))}
+                  </Select>
+                </div>
 
-                <input
-                  className="field__input"
+                <Input
                   type="text"
                   inputMode="decimal"
                   autoComplete="off"
@@ -304,8 +308,7 @@ export function RecipeDialog({
                   required
                 />
 
-                <input
-                  className="field__input"
+                <Input
                   type="text"
                   inputMode="decimal"
                   autoComplete="off"
@@ -317,43 +320,43 @@ export function RecipeDialog({
                   aria-label={t.products.recipeForm.waste}
                 />
 
-                <button
-                  className="icon-btn"
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-11 justify-self-center sm:size-10"
                   type="button"
                   onClick={() => removeRow(row.key)}
                   aria-label={t.products.recipeForm.removeItem}
                   disabled={rows.length === 1}
                 >
                   <Trash2 size={14} />
-                </button>
+                </Button>
               </div>
             ))}
 
-            <button
-              className="btn btn--ghost recipe-form__add"
+            <Button
+              variant="ghost"
+              size="sm"
+              className="self-start"
               type="button"
               onClick={addRow}
             >
               <Plus size={14} />
               {t.products.recipeForm.addItem}
-            </button>
+            </Button>
           </div>
 
-          {error && (
-            <p className="form__error" role="alert">
-              {error}
-            </p>
-          )}
+          {error && <FormError>{error}</FormError>}
 
-          <div className="form__actions">
-            <button className="btn btn--ghost" type="button" onClick={onClose}>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" type="button" onClick={onClose}>
               {t.products.recipeForm.cancel}
-            </button>
-            <button className="btn btn--primary" type="submit" disabled={saving}>
+            </Button>
+            <Button type="submit" disabled={saving}>
               {saving
                 ? t.products.recipeForm.saving
                 : t.products.recipeForm.submit}
-            </button>
+            </Button>
           </div>
         </form>
       )}

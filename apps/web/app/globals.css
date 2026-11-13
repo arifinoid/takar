@@ -134,9 +134,14 @@
     animation: ui-scale-in 150ms cubic-bezier(0.2, 0, 0, 1);
   }
 
+  .ui-sheet {
+    animation: ui-slide-in 200ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .ui-overlay[data-state="open"],
-    .ui-content {
+    .ui-content,
+    .ui-sheet {
       animation: ui-fade-in 150ms ease-out;
     }
   }
@@ -157,6 +162,17 @@
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes ui-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 
