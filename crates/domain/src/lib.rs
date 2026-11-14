@@ -1,8 +1,10 @@
 //! Shared domain types and the HTTP API contract.
 
+pub mod billing;
 pub mod plan;
 pub mod rbac;
 
+pub use billing::{access, ends_at, Access};
 pub use plan::{Plan, PlanLimits, Resource};
 pub use rbac::{Permission, Role};
 

@@ -277,12 +277,62 @@ export type SubscriptionUsage = {
   warehouses: number;
 };
 
+/** Whether the tenant may still write. Derived from its dates on the server. */
+export type Access = "active" | "grace" | "read_only";
+
 export type Subscription = {
   plan: string;
+  /** Reads stay open; only writes are refused once this is `read_only`. */
+  access: Access;
   trial_ends_at: string | null;
+  /** End of the last verified paid period. */
+  paid_until: string | null;
+  /** When access runs out, grace included. */
+  ends_at: string | null;
   /** Null means the plan does not cap that resource. */
   limits: SubscriptionLimits;
   usage: SubscriptionUsage;
+};
+
+export type Payment = {
+  id: string;
+  amount: string;
+  method: string;
+  reference: string | null;
+  plan: string;
+  period_start: string;
+  period_end: string;
+  status: "pending" | "verified" | "rejected";
+  note: string | null;
+  verified_at: string | null;
+  created_at: string;
+};
+
+export type Billing = {
+  plan: string;
+  access: Access;
+  trial_ends_at: string | null;
+  paid_until: string | null;
+  ends_at: string | null;
+  /** Negative once the entitlement has passed. */
+  days_left: number | null;
+  /** Monthly price of the current plan. Null on the trial. */
+  price_per_month: number | null;
+  /** Every plan the tenant can buy, so the screen never hardcodes a price. */
+  plans: { id: string; price: number }[];
+  payments: Payment[];
+};
+
+/** The operator still has to check the transfer before it activates anything. */
+export type NewPayment = {
+  plan: string;
+  method: string;
+  /** One to twelve. Defaults to one. */
+  months?: number;
+  /** Defaults to the plan price times the months. */
+  amount?: string;
+  reference?: string;
+  note?: string;
 };
 
 export type TenantSettings = {
@@ -653,6 +703,25 @@ export class ApiClient {
 
   getSubscription(token: string): Promise<Subscription> {
     return this.request<Subscription>("/subscription", { token });
+  }
+
+  getBilling(token: string): Promise<Billing> {
+    return this.request<Billing>("/billing", { token });
+  }
+
+  createPayment(token: string, body: NewPayment): Promise<Payment> {
+    return this.request<Payment>("/billing/payments", {
+      method: "POST",
+      token,
+      body,
+    });
+  }
+
+  deletePayment(token: string, id: string): Promise<void> {
+    return this.request<void>(`/billing/payments/${id}`, {
+      method: "DELETE",
+      token,
+    });
   }
 
   getBusinessReport(token: string): Promise<BusinessReport> {
