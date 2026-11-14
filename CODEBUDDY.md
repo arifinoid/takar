@@ -61,6 +61,13 @@ Daily jobs (run from cron in deployment):
 cargo run -p takar-api --bin alert_job     # fills, resolves, and sends alerts; safe to re-run
 ```
 
+Manual billing, run by the operator rather than from cron:
+
+```bash
+cargo run -p takar-api --bin billing -- list
+cargo run -p takar-api --bin billing -- verify <payment-id> --by <label>
+```
+
 The job claims tenants with `skip locked`, so it needs a database role that can see every tenant — the migration role or a role with `bypassrls`. Per-tenant work still runs in a tenant-scoped transaction.
 
 Delivery goes through the same `notify::Router` as OTP. Each tenant gets one digest per channel, not one message per alert; every attempt is recorded (`delivery_status`, `attempts`, `last_error`), a failure is retried on the next run up to three attempts, and a tenant without an owner contact is marked `skipped` instead of retrying forever. If the rule's channel has no contact but the owner has the other one, the digest uses that channel; a tenant with no owner at all is the only case that is skipped. Links in the message point at `APP_URL`.
@@ -145,6 +152,16 @@ Every tenant starts on `trial` with `trial_ends_at` set to 14 days after creatio
 `GET /subscription` returns the plan, the trial end, the limits, and current usage. Seats count active memberships plus pending invitations, because an invitation reserves a seat. Materials and recipes count only active rows: archiving a material frees a slot, and a new recipe version does not consume one. Warehouses have no table until P4-01, so that counter stays at zero.
 
 A create over the limit is refused with `403 plan_limit_reached` and `details { resource, plan, limit, current }`. Only creates are checked — a downgrade never deletes or hides rows, it just blocks the next one.
+
+### Billing
+
+Access is derived, never stored: `takar_domain::billing::access` reads `tenants.trial_ends_at` and `tenants.paid_until` and returns `active`, `grace` or `read_only`. It runs to the later of the two dates plus seven days of grace, so a support extension or an early payment can only lengthen access. A tenant with neither date stays active — locking out an account we cannot date would be a bug, not a policy.
+
+Read-only is enforced once, in `AuthContext`: any non-GET request is refused with `403 subscription_expired` and `details { access }`. Reads stay open, and so do the `/billing` routes, because recording a payment is the way back. Nothing is deleted; a verified payment restores the account exactly as it was.
+
+`payments` is a manual transfer the operator verifies (D4). The owner records the plan, method, months and a reference; the server derives the period — today, or the day after the current paid period when paying early — and prefills the amount from `Plan::monthly_price`. The row stays `pending` until the operator runs the `billing` bin, which calls `activate()` and marks it verified. `activate()` is the only function that writes a subscription, so a gateway webhook later replaces the CLI without touching anything else, and it only ever moves `paid_until` forward.
+
+The bin needs the same role as `alert_job`: the pending list spans every tenant, so row level security must not hide it. The write itself still runs in a tenant-scoped transaction.
 
 ### Reports
 

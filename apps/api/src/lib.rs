@@ -2,6 +2,7 @@
 
 pub mod alerts;
 pub mod auth;
+pub mod billing;
 pub mod config;
 pub mod dashboard;
 pub mod error;
@@ -63,6 +64,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api-docs/openapi.json", get(openapi))
         .route("/dashboard", get(dashboard::overview))
         .merge(auth::routes())
+        .merge(billing::routes())
         .merge(master::routes())
         .merge(onboarding::routes())
         .merge(production::routes())

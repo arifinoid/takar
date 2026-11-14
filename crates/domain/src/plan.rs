@@ -94,6 +94,24 @@ impl Plan {
             Plan::Business => BUSINESS,
         }
     }
+
+    /// Monthly price in whole Rupiah, from the product plan.
+    ///
+    /// A hypothesis to test with prospects, not final pricing, and the number
+    /// the payment screen prefills. The trial is free, so it has no price.
+    pub const fn monthly_price(self) -> Option<i64> {
+        match self {
+            Plan::Trial => None,
+            Plan::Starter => Some(79_000),
+            Plan::Pro => Some(199_000),
+            Plan::Business => Some(499_000),
+        }
+    }
+
+    /// Every plan a tenant can pay for, in ascending order.
+    pub const fn paid() -> [Plan; 3] {
+        [Plan::Starter, Plan::Pro, Plan::Business]
+    }
 }
 
 impl Resource {
@@ -161,6 +179,15 @@ mod tests {
                 .exceeded(Resource::Materials, 100_000),
             None
         );
+    }
+
+    #[test]
+    fn only_the_paid_plans_carry_a_price() {
+        assert_eq!(Plan::Trial.monthly_price(), None);
+
+        for plan in Plan::paid() {
+            assert!(plan.monthly_price().is_some_and(|price| price > 0));
+        }
     }
 
     #[test]

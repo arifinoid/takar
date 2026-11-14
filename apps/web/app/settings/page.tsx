@@ -1,6 +1,11 @@
 "use client";
 
-import { ApiError, type Subscription } from "@takar/api-client";
+import {
+  ApiError,
+  type Access,
+  type Billing,
+  type Subscription,
+} from "@takar/api-client";
 import { useEffect, useState } from "react";
 
 import {
@@ -12,8 +17,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { api } from "@/lib/api";
-import { formatDateTime, normalizeDecimal } from "@/lib/format";
+import {
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  normalizeDecimal,
+} from "@/lib/format";
 import { fill, useI18n, type Dictionary } from "@/lib/i18n";
 import { readToken } from "@/lib/session";
 import { useMe } from "@/lib/use-me";
@@ -26,6 +37,11 @@ type Load = { status: "loading" } | { status: "ready" } | { status: "error" };
 const MIN_WINDOW_DAYS = 1;
 const MAX_WINDOW_DAYS = 365;
 
+const MIN_MONTHS = 1;
+const MAX_MONTHS = 12;
+
+const PAYMENT_METHODS = ["transfer", "qris", "cash", "lainnya"] as const;
+
 export default function SettingsPage() {
   const { t, locale } = useI18n();
   const { state: session, reload: reloadSession, signOut } = useMe();
@@ -34,6 +50,13 @@ export default function SettingsPage() {
   const [rate, setRate] = useState("");
   const [windowDays, setWindowDays] = useState("");
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [billing, setBilling] = useState<Billing | null>(null);
+  const [payPlan, setPayPlan] = useState("starter");
+  const [payMonths, setPayMonths] = useState("1");
+  const [payMethod, setPayMethod] = useState<string>("transfer");
+  const [payReference, setPayReference] = useState("");
+  const [paying, setPaying] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -64,6 +87,29 @@ export default function SettingsPage() {
     };
   }, [session.status]);
 
+  // Billing is owner-only, and a failure here must not take the screen down:
+  // the card simply stays hidden and the rest of the settings still work.
+  useEffect(() => {
+    if (session.status !== "ready") return;
+    if (!session.me.permissions.includes("billing_manage")) return;
+
+    const token = readToken();
+    if (!token) return;
+
+    let active = true;
+
+    api
+      .getBilling(token)
+      .then((data) => {
+        if (active) setBilling(data);
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [session.status]);
+
   useEffect(() => {
     if (!notice) return;
 
@@ -73,6 +119,71 @@ export default function SettingsPage() {
 
   const permissions = session.status === "ready" ? session.me.permissions : [];
   const canManage = permissions.includes("tenant_manage");
+
+  const months = Number(payMonths) || 0;
+  const planPrice = billing?.plans.find((plan) => plan.id === payPlan)?.price ?? 0;
+  const total = planPrice * months;
+
+  async function recordPayment(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const token = readToken();
+    if (!token || paying) return;
+
+    if (
+      !Number.isInteger(months) ||
+      months < MIN_MONTHS ||
+      months > MAX_MONTHS
+    ) {
+      setPaymentError(t.settings.billing.errors.invalidMonths);
+      return;
+    }
+
+    setPaying(true);
+    setPaymentError(null);
+
+    try {
+      const payment = await api.createPayment(token, {
+        plan: payPlan,
+        method: payMethod,
+        months,
+        reference: payReference.trim() || undefined,
+      });
+
+      setBilling((current) =>
+        current
+          ? { ...current, payments: [payment, ...current.payments] }
+          : current,
+      );
+      setPayReference("");
+      setNotice(t.settings.billing.recorded);
+    } catch {
+      setPaymentError(t.settings.billing.failed);
+    } finally {
+      setPaying(false);
+    }
+  }
+
+  async function withdraw(id: string) {
+    const token = readToken();
+    if (!token) return;
+
+    setPaymentError(null);
+
+    try {
+      await api.deletePayment(token, id);
+      setBilling((current) =>
+        current
+          ? {
+              ...current,
+              payments: current.payments.filter((payment) => payment.id !== id),
+            }
+          : current,
+      );
+    } catch {
+      setPaymentError(t.settings.billing.withdrawFailed);
+    }
+  }
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -317,6 +428,12 @@ export default function SettingsPage() {
                   )}
                 </div>
 
+                {subscription.access === "read_only" && (
+                  <p className="rounded-lg bg-warning-soft px-3 py-2.5 text-xs text-warning">
+                    {t.settings.billing.readOnlyHint}
+                  </p>
+                )}
+
                 <dl className="flex flex-col gap-2">
                   <Usage
                     label={t.settings.plan.users}
@@ -340,6 +457,163 @@ export default function SettingsPage() {
                     unlimited={t.settings.plan.unlimited}
                   />
                 </dl>
+              </section>
+            )}
+
+            {billing && (
+              <section className="flex max-w-[520px] flex-col gap-4 rounded-xl border border-border bg-card p-4.5">
+                <Intro
+                  title={t.settings.billing.title}
+                  body={t.settings.billing.body}
+                />
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <Badge
+                    variant={accessVariant(billing.access)}
+                    className="px-2.5 py-1 text-xs"
+                  >
+                    {t.settings.billing.access[billing.access]}
+                  </Badge>
+                  <span className="text-xs text-ink-3">
+                    {billing.ends_at
+                      ? fill(t.settings.billing.endsAt, {
+                          date: formatDateTime(billing.ends_at, locale),
+                        })
+                      : t.settings.billing.noEnd}
+                  </span>
+                </div>
+
+                {billing.access === "read_only" && (
+                  <p className="rounded-lg bg-warning-soft px-3 py-2.5 text-xs text-warning">
+                    {t.settings.billing.readOnlyHint}
+                  </p>
+                )}
+
+                <form className="flex flex-col gap-3" onSubmit={recordPayment}>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="billing-plan">
+                        {t.settings.billing.plan}
+                      </Label>
+                      <Select
+                        id="billing-plan"
+                        value={payPlan}
+                        onChange={(event) => setPayPlan(event.target.value)}
+                      >
+                        {billing.plans.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {planName(t, option.id)} ·{" "}
+                            {formatMoney(option.price, locale)}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="billing-months">
+                        {t.settings.billing.months}
+                      </Label>
+                      <Input
+                        id="billing-months"
+                        type="number"
+                        min={MIN_MONTHS}
+                        max={MAX_MONTHS}
+                        step="1"
+                        value={payMonths}
+                        onChange={(event) => setPayMonths(event.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="billing-method">
+                        {t.settings.billing.method}
+                      </Label>
+                      <Select
+                        id="billing-method"
+                        value={payMethod}
+                        onChange={(event) => setPayMethod(event.target.value)}
+                      >
+                        {PAYMENT_METHODS.map((method) => (
+                          <option key={method} value={method}>
+                            {t.settings.billing.methods[method]}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="billing-reference">
+                        {t.settings.billing.reference}
+                      </Label>
+                      <Input
+                        id="billing-reference"
+                        value={payReference}
+                        onChange={(event) => setPayReference(event.target.value)}
+                        placeholder={t.settings.billing.referenceHint}
+                        autoComplete="off"
+                      />
+                    </div>
+                  </div>
+
+                  {paymentError && (
+                    <p
+                      role="alert"
+                      className="rounded-lg bg-danger-soft px-3 py-2.5 text-xs text-destructive"
+                    >
+                      {paymentError}
+                    </p>
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <span className="text-sm font-bold tabular-nums">
+                      {t.settings.billing.total}: {formatMoney(total, locale)}
+                    </span>
+                    <Button type="submit" disabled={paying}>
+                      {paying
+                        ? t.settings.billing.recording
+                        : t.settings.billing.record}
+                    </Button>
+                  </div>
+                </form>
+
+                {billing.payments.length > 0 && (
+                  <ul className="flex flex-col gap-2">
+                    {billing.payments.map((payment) => (
+                      <li
+                        key={payment.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-alt px-3 py-2"
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold tabular-nums">
+                            {formatMoney(Number(payment.amount), locale)}
+                          </span>
+                          <span className="text-[10.5px] text-ink-3">
+                            {planName(t, payment.plan)} ·{" "}
+                            {formatDate(payment.period_start, locale)} –{" "}
+                            {formatDate(payment.period_end, locale)} ·{" "}
+                            {methodName(t, payment.method)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={statusVariant(payment.status)}>
+                            {t.settings.billing.status[payment.status]}
+                          </Badge>
+                          {payment.status === "pending" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              type="button"
+                              onClick={() => void withdraw(payment.id)}
+                            >
+                              {t.settings.billing.withdraw}
+                            </Button>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </section>
             )}
           </div>
@@ -394,6 +668,28 @@ function Usage({ label, used, limit, of, unlimited }: UsageProps) {
       </dd>
     </div>
   );
+}
+
+function accessVariant(access: Access): "brand" | "warning" | "danger" {
+  if (access === "active") return "brand";
+  if (access === "grace") return "warning";
+
+  return "danger";
+}
+
+function statusVariant(
+  status: "pending" | "verified" | "rejected",
+): "neutral" | "brand" | "danger" {
+  if (status === "verified") return "brand";
+  if (status === "rejected") return "danger";
+
+  return "neutral";
+}
+
+function methodName(t: Dictionary, method: string): string {
+  const methods = t.settings.billing.methods as Record<string, string | undefined>;
+
+  return methods[method] ?? method;
 }
 
 function planName(t: Dictionary, plan: string): string {

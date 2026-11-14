@@ -16,10 +16,10 @@ This document turns `Rencana Produk PPIC + POS Ringan untuk UMKM F&B.md` into an
 
 | Phase | Focus | Gate to advance | Status |
 | --- | --- | --- | --- |
-| 0 | Technical foundation + validation | 3–5 prospects willing to try and pay; Android build runs on 2 low-end phones | in progress |
-| 1 | Stock, batches, expiry | 3 businesses use it instead of a notebook for 2 weeks | not started |
-| 2 | Recipes, production, HPP | Users trust the HPP and use it to set prices | not started |
-| 3 | Purchasing, sales, subscription | First paying customer | not started |
+| 0 | Technical foundation + validation | 3–5 prospects willing to try and pay; Android build runs on 2 low-end phones | code done; gate pending (P0-08) |
+| 1 | Stock, batches, expiry | 3 businesses use it instead of a notebook for 2 weeks | code done; gate pending |
+| 2 | Recipes, production, HPP | Users trust the HPP and use it to set prices | code done; gate pending |
+| 3 | Purchasing, sales, subscription | First paying customer | in progress — P3-06 open |
 | 4 | Expansion | Stable monthly retention | not started |
 
 ## Platform targets
@@ -81,6 +81,8 @@ Goal: the repo builds, multi-tenant auth works, and the Android app installs on 
 
 **Phase 0 gate:** P0-01 through P0-12 are done and P0-08 yields 3–5 prospects. Without this gate, phase 1 can still be built, but do not claim product validation.
 
+**Status (2026-11-14):** P0-01 through P0-07 and P0-09 through P0-12 are built. P0-08, the interviews, is the open gate.
+
 ---
 
 ## Phase 1 — Stock and expiry
@@ -104,6 +106,8 @@ Goal: replace the notebook for material stock and expiry dates.
 
 **Phase 1 gate:** at least 3 businesses use the product instead of a notebook for 2 weeks.
 
+**Status (2026-11-14):** P1-01 through P1-10 are built. What is missing is the two-week usage, not code.
+
 ---
 
 ## Phase 2 — Recipes, production, HPP
@@ -125,6 +129,8 @@ Goal: an HPP that users trust and use to set selling prices. This is the densest
 
 **Phase 2 gate:** users trust the HPP and start using it to set prices.
 
+**Status (2026-11-14):** P2-01 through P2-08 are built. D8 (batch tracking for finished goods) is still open and belongs at the end of this phase.
+
 ---
 
 ## Phase 3 — Purchasing, sales, subscription
@@ -139,6 +145,8 @@ Goal: an HPP that users trust and use to set selling prices. This is the densest
 | P3-06 | Report export (Pro) | CSV/Excel respects the same filters as the on-screen view |
 
 **Phase 3 gate:** first paying customer.
+
+**Status (2026-11-14):** P3-01 through P3-05 are built; P3-06 (report export) is open. Billing is manual, per D4: the owner records a transfer, the operator checks it and runs `cargo run -p takar-api --bin billing -- verify <payment-id>`, and access runs to the paid period plus a 7-day grace before the tenant goes read-only. Reads and the billing routes stay open in read-only mode so a tenant can always pay its way back.
 
 ---
 
