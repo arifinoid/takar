@@ -21,7 +21,7 @@ export function LocaleSwitch() {
           className={cn(
             "rounded-full px-2.5 py-1 text-[12px] font-bold tracking-[0.06em] transition-colors outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
             value === locale
-              ? "bg-accent text-white"
+              ? "bg-brand text-white"
               : "text-muted-foreground hover:text-foreground",
           )}
           aria-pressed={value === locale}

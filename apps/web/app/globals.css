@@ -1,13 +1,11 @@
 @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
 
-/* Layer order: legacy page CSS is older than the utility layer, so a utility
-   on a migrated element always wins. Without this the hand-written rules
-   (unlayered) would outrank every Tailwind class. */
-@layer theme, base, legacy, components, utilities;
+/* Layer order: base resets come first, utilities last, so a utility on an
+   element always wins. */
+@layer theme, base, components, utilities;
 
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
-@import "./legacy.css" layer(legacy);
 
 /* Design tokens from takar.pen (00 · Design System). -------------------- */
 
@@ -29,10 +27,6 @@
   --danger-soft: #fae7e3;
   --amber: #9a6210;
   --amber-soft: #fbefd9;
-
-  /* Aliases used by the landing page. */
-  --muted: var(--ink2);
-  --accent: var(--brand);
 }
 
 /* Tailwind theme, mapped onto the same tokens. `inline` keeps the utilities
@@ -101,19 +95,40 @@
   --text-4xl: 34px;
   --text-4xl--line-height: 1.1;
 
-  /* Matches the legacy .skeleton shimmer so both read as one system. */
+  /* Matches the shimmer used by the skeleton placeholders. */
   --animate-shimmer: shimmer 1.4s ease-in-out infinite;
 }
 
-/* Preflight is deliberately not loaded: the legacy sheets assume browser
-   defaults for headings, lists and margins. Only the border reset is needed,
-   so utilities such as `border` draw an edge. */
+/* Preflight is deliberately not loaded: the app assumes browser defaults for
+   headings, lists and margins, and each screen sets the ones it needs. Only
+   the resets below are global. */
 @layer base {
   *,
   ::before,
   ::after,
   ::backdrop {
     border-style: solid;
+  }
+
+  *,
+  ::before,
+  ::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system,
+      "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
 }
 

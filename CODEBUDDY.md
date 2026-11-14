@@ -94,7 +94,7 @@ Data flow: UI → generated TypeScript client → Axum → `takar-db`/`takar-cor
 
 ### Web UI
 
-Tailwind v4 runs through PostCSS and is loaded by `app/globals.css`, which is the only style entry: the takar.pen tokens, their `@theme` mapping, and the layer order `theme, base, legacy, components, utilities`. `app/legacy.css` holds every rule written before Tailwind inside the `legacy` layer, so a utility on a migrated element always wins; delete a page's block from it when that page moves to the primitives.
+Tailwind v4 runs through PostCSS and is loaded by `app/globals.css`, which is the only style entry: the takar.pen tokens, their `@theme` mapping, the layer order `theme, base, components, utilities`, and the global resets (`box-sizing`, `html`/`body` margins, body background and font) in `base`. Preflight is deliberately not loaded, so a screen sets the heading and list margins it needs.
 
 Components live in `components/ui` and are copied shadcn source, not a dependency: `button`, `input`, `label`, `select` (native, for the Android WebView), `field`, `card`, `badge`, `dialog` (Radix, plus `DialogSheet` for the batch panel), `table`, `skeleton`. Do not add `@radix-ui/themes`, which ships its own look. `components/modal.tsx` is the thin wrapper every form dialog uses, so focus trap, Escape and scroll lock come from Radix rather than from each form. Style with the mapped tokens (`bg-card`, `text-ink-3`, `border-border`), never a raw palette class, or the design system drifts from the .pen file. Controls are 10px, surfaces 14px, and `text-sm` is the 12.5px body size.
 
