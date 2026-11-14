@@ -83,14 +83,14 @@ export function OtpInput({ value, onChange, label, disabled }: Props) {
   }
 
   return (
-    <div className="otp" role="group" aria-label={label}>
+    <div className="grid grid-cols-6 gap-[7px]" role="group" aria-label={label}>
       {value.map((digit, index) => (
         <input
           key={index}
           ref={(element) => {
             refs.current[index] = element;
           }}
-          className={digit ? "otp__box otp__box--filled" : "otp__box"}
+          className={`h-12 w-full rounded-lg border bg-card text-center text-[19px] font-bold text-foreground outline-none transition-[border-color,box-shadow] focus:border-primary focus:shadow-[0_0_0_3px_var(--brand-soft)] disabled:opacity-55 ${digit ? "border-primary" : "border-input"}`}
           value={digit}
           onChange={(event) => handleChange(index, event)}
           onKeyDown={(event) => handleKeyDown(index, event)}
