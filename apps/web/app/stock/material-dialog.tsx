@@ -3,13 +3,17 @@
 import type { Material, Supplier, Unit } from "@takar/api-client";
 import { useState } from "react";
 
+import { Modal } from "@/components/modal";
+import { Button } from "@/components/ui/button";
+import { Field, FormError } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import { normalizeDecimal } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { readToken } from "@/lib/session";
 
 import { stockError } from "./error-copy";
-import { Modal } from "@/components/modal";
 
 type Props = {
   units: Unit[];
@@ -83,12 +87,10 @@ export function MaterialDialog({ units, suppliers, onClose, onCreated }: Props) 
       closeLabel={t.stock.panel.close}
       onClose={onClose}
     >
-      <form className="form" onSubmit={submit}>
-        <div className="form__grid">
-          <label className="field form__wide">
-            <span className="field__label">{t.stock.form.name}</span>
-            <input
-              className="field__input"
+      <form className="flex flex-col gap-4" onSubmit={submit}>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={t.stock.form.name} className="sm:col-span-2">
+            <Input
               type="text"
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -96,12 +98,10 @@ export function MaterialDialog({ units, suppliers, onClose, onCreated }: Props) 
               required
               autoFocus
             />
-          </label>
+          </Field>
 
-          <label className="field">
-            <span className="field__label">{t.stock.form.unit}</span>
-            <select
-              className="field__input"
+          <Field label={t.stock.form.unit}>
+            <Select
               value={unitId}
               onChange={(event) => setUnitId(event.target.value)}
               required
@@ -111,37 +111,30 @@ export function MaterialDialog({ units, suppliers, onClose, onCreated }: Props) 
                   {unit.code} · {unit.name}
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </Field>
 
-          <label className="field">
-            <span className="field__label">{t.stock.form.minStock}</span>
-            <input
-              className="field__input"
+          <Field label={t.stock.form.minStock}>
+            <Input
               type="text"
               inputMode="decimal"
               value={minStock}
               onChange={(event) => setMinStock(event.target.value)}
             />
-          </label>
+          </Field>
 
-          <label className="field">
-            <span className="field__label">{t.stock.form.shelfLife}</span>
-            <input
-              className="field__input"
+          <Field label={t.stock.form.shelfLife} hint={t.stock.form.shelfLifeHint}>
+            <Input
               type="number"
               min={0}
               step={1}
               value={shelfLife}
               onChange={(event) => setShelfLife(event.target.value)}
             />
-            <span className="field__hint">{t.stock.form.shelfLifeHint}</span>
-          </label>
+          </Field>
 
-          <label className="field">
-            <span className="field__label">{t.stock.form.defaultSupplier}</span>
-            <select
-              className="field__input"
+          <Field label={t.stock.form.defaultSupplier}>
+            <Select
               value={supplierId}
               onChange={(event) => setSupplierId(event.target.value)}
             >
@@ -151,23 +144,19 @@ export function MaterialDialog({ units, suppliers, onClose, onCreated }: Props) 
                   {supplier.name}
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </Field>
         </div>
 
-        {error && (
-          <p className="form__error" role="alert">
-            {error}
-          </p>
-        )}
+        {error && <FormError>{error}</FormError>}
 
-        <div className="form__actions">
-          <button className="btn btn--ghost" type="button" onClick={onClose}>
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" type="button" onClick={onClose}>
             {t.stock.form.cancel}
-          </button>
-          <button className="btn btn--primary" type="submit" disabled={saving}>
+          </Button>
+          <Button type="submit" disabled={saving}>
             {saving ? t.stock.form.creating : t.stock.form.create}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

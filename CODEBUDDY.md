@@ -92,6 +92,16 @@ Three runtimes, one calculation core:
 
 Data flow: UI → generated TypeScript client → Axum → `takar-db`/`takar-core` → Postgres. Core may also run inside Tauri for local previews, but the server stays the source of truth.
 
+### Web UI
+
+Tailwind v4 runs through PostCSS and is loaded by `app/globals.css`, which is the only style entry: the takar.pen tokens, their `@theme` mapping, the layer order `theme, base, components, utilities`, and the global resets (`box-sizing`, `html`/`body` margins, body background and font) in `base`. Preflight is deliberately not loaded, so a screen sets the heading and list margins it needs.
+
+Components live in `components/ui` and are copied shadcn source, not a dependency: `button`, `input`, `label`, `select` (native, for the Android WebView), `field`, `card`, `badge`, `dialog` (Radix, plus `DialogSheet` for the batch panel), `table`, `skeleton`. Do not add `@radix-ui/themes`, which ships its own look. `components/modal.tsx` is the thin wrapper every form dialog uses, so focus trap, Escape and scroll lock come from Radix rather than from each form. Style with the mapped tokens (`bg-card`, `text-ink-3`, `border-border`), never a raw palette class, or the design system drifts from the .pen file. Controls are 10px, surfaces 14px, and `text-sm` is the 12.5px body size.
+
+Loading uses skeletons, never a spinner or a "Memuat…" line: `components/skeletons.tsx` exports `LoadingRegion` (the `role="status"` wrapper carrying the translated label for screen readers), `SkeletonStats`, `SkeletonTable`, `SkeletonList` and `SkeletonForm`. A page composes the shape it is about to render. `useMe` keeps the last `/me` answer for the tab, so navigating between pages does not blank the shell.
+
+`AppShell` takes `me` as optional. While `/me` is in flight a page renders `<AppShell active="…">` with its skeleton inside, so the sidebar, topbar and tab bar are present from the first paint; the tenant and user blocks show placeholders and sign-out stays disabled until the session resolves. Only the error state renders outside the shell, because there is no session to hang the chrome on.
+
 ### Stock model
 
 Stock is a batch ledger, not a scalar. `material_batches.qty_remaining` is on-hand per batch; `stock_movements` is the audit trail. Never add a single `stock` column to `materials`. Finished goods currently rely on `products.stock_qty` — see the open decision about batch-tracking finished goods before extending it.

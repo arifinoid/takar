@@ -3,11 +3,21 @@
 import { ApiError, type Subscription } from "@takar/api-client";
 import { useEffect, useState } from "react";
 
+import {
+  LoadingRegion,
+  SkeletonForm,
+  SkeletonList,
+} from "@/components/skeletons";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { formatDateTime, normalizeDecimal } from "@/lib/format";
 import { fill, useI18n, type Dictionary } from "@/lib/i18n";
 import { readToken } from "@/lib/session";
 import { useMe } from "@/lib/use-me";
+import { cn } from "@/lib/utils";
 
 import { AppShell } from "../app-shell";
 
@@ -125,71 +135,95 @@ export default function SettingsPage() {
   return (
     <>
       {session.status === "loading" && (
-        <main className="page">
-          <p className="lede">{t.settings.loading}</p>
-        </main>
+        <AppShell active="settings">
+          <div className="flex max-w-[720px] flex-col gap-4">
+            <LoadingRegion
+              label={t.settings.loading}
+              className="flex flex-col gap-4"
+            >
+              <SkeletonForm fields={2} />
+              <SkeletonList rows={2} />
+            </LoadingRegion>
+          </div>
+        </AppShell>
       )}
 
       {session.status === "error" && (
-        <main className="page">
-          <div className="card">
-            <p>{t.dashboard.error}</p>
-            <button
-              className="btn btn--secondary"
+        <main className="mx-auto max-w-[720px] p-6">
+          <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
+            <p className="text-sm text-muted-foreground">{t.dashboard.error}</p>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="self-start"
               type="button"
               onClick={() => void reloadSession()}
             >
               {t.dashboard.retry}
-            </button>
+            </Button>
           </div>
         </main>
       )}
 
       {session.status === "ready" && (
         <AppShell me={session.me} active="settings" onSignOut={signOut}>
-          <div className="settings">
-            <header className="settings__header">
-              <h1>{t.settings.title}</h1>
-              <p className="settings__sub">{t.settings.subtitle}</p>
+          <div className="flex max-w-[720px] flex-col gap-4">
+            <header>
+              <h1 className="text-xl font-extrabold tracking-tight sm:text-3xl">
+                {t.settings.title}
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t.settings.subtitle}
+              </p>
             </header>
 
             {notice && (
-              <p className="notice" role="status">
+              <p
+                role="status"
+                className="rounded-lg bg-brand-soft px-3 py-2.5 text-xs font-medium text-brand"
+              >
                 {notice}
               </p>
             )}
 
             {load.status === "loading" && (
-              <p className="lede">{t.settings.loading}</p>
+              <LoadingRegion
+                label={t.settings.loading}
+                className="flex flex-col gap-4"
+              >
+                <SkeletonForm fields={2} />
+                <SkeletonList rows={2} />
+              </LoadingRegion>
             )}
 
             {load.status === "error" && (
-              <div className="card">
-                <p>{t.settings.error}</p>
-                <button
-                  className="btn btn--secondary"
+              <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
+                <p className="text-sm text-muted-foreground">
+                  {t.settings.error}
+                </p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="self-start"
                   type="button"
                   onClick={() => window.location.reload()}
                 >
                   {t.settings.retry}
-                </button>
+                </Button>
               </div>
             )}
 
             {load.status === "ready" && (
-              <form className="settings__form" onSubmit={save}>
-                <section className="settings__card">
-                  <div className="settings__intro">
-                    <h2>{t.settings.labor.title}</h2>
-                    <p>{t.settings.labor.body}</p>
-                  </div>
+              <form className="flex flex-col gap-4" onSubmit={save}>
+                <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4.5">
+                  <Intro title={t.settings.labor.title} body={t.settings.labor.body} />
 
-                  <label className="field">
-                    <span className="field__label">
+                  <div className="flex max-w-[320px] flex-col gap-1.5">
+                    <Label htmlFor="settings-rate">
                       {t.settings.labor.label}
-                    </span>
-                    <input
-                      className="field__input"
+                    </Label>
+                    <Input
+                      id="settings-rate"
                       type="text"
                       inputMode="decimal"
                       autoComplete="off"
@@ -199,26 +233,26 @@ export default function SettingsPage() {
                       readOnly={!canManage}
                       required
                     />
-                    <span className="field__hint">
+                    <span className="text-2xs leading-snug text-ink-3">
                       {canManage
                         ? t.settings.labor.hint
                         : t.settings.labor.readOnly}
                     </span>
-                  </label>
+                  </div>
                 </section>
 
-                <section className="settings__card">
-                  <div className="settings__intro">
-                    <h2>{t.settings.usage.title}</h2>
-                    <p>{t.settings.usage.body}</p>
-                  </div>
+                <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4.5">
+                  <Intro
+                    title={t.settings.usage.title}
+                    body={t.settings.usage.body}
+                  />
 
-                  <label className="field">
-                    <span className="field__label">
+                  <div className="flex max-w-[320px] flex-col gap-1.5">
+                    <Label htmlFor="settings-window">
                       {t.settings.usage.label}
-                    </span>
-                    <input
-                      className="field__input"
+                    </Label>
+                    <Input
+                      id="settings-window"
                       type="number"
                       min={MIN_WINDOW_DAYS}
                       max={MAX_WINDOW_DAYS}
@@ -228,47 +262,46 @@ export default function SettingsPage() {
                       readOnly={!canManage}
                       required
                     />
-                    <span className="field__hint">
+                    <span className="text-2xs leading-snug text-ink-3">
                       {canManage
                         ? t.settings.usage.hint
                         : t.settings.labor.readOnly}
                     </span>
-                  </label>
+                  </div>
                 </section>
 
                 {error && (
-                  <p className="form__error" role="alert">
+                  <p
+                    role="alert"
+                    className="rounded-lg bg-danger-soft px-3 py-2.5 text-xs text-destructive"
+                  >
                     {error}
                   </p>
                 )}
 
                 {canManage && (
-                  <div className="settings__actions">
-                    <button
-                      className="btn btn--primary"
-                      type="submit"
-                      disabled={saving}
-                    >
+                  <div className="flex justify-end">
+                    <Button type="submit" disabled={saving}>
                       {saving ? t.settings.saving : t.settings.save}
-                    </button>
+                    </Button>
                   </div>
                 )}
               </form>
             )}
 
             {load.status === "ready" && subscription && (
-              <section className="settings__card plan">
-                <div className="settings__intro">
-                  <h2>{t.settings.plan.title}</h2>
-                  <p>{t.settings.plan.hint}</p>
-                </div>
+              <section className="flex max-w-[520px] flex-col gap-4 rounded-xl border border-border bg-card p-4.5">
+                <Intro
+                  title={t.settings.plan.title}
+                  body={t.settings.plan.hint}
+                />
 
-                <div className="plan__head">
-                  <span className="pill pill--safe">
+                <div className="flex flex-col items-start gap-2.5 sm:flex-row sm:items-center">
+                  <Badge variant="brand" className="px-2.5 py-1 text-xs">
                     {planName(t, subscription.plan)}
-                  </span>
+                  </Badge>
                   {subscription.trial_ends_at && (
-                    <span className="plan__trial">
+                    <span className="text-xs text-ink-3">
                       {fill(
                         isPast(subscription.trial_ends_at)
                           ? t.settings.plan.trialEnded
@@ -284,7 +317,7 @@ export default function SettingsPage() {
                   )}
                 </div>
 
-                <dl className="plan__usage">
+                <dl className="flex flex-col gap-2">
                   <Usage
                     label={t.settings.plan.users}
                     used={subscription.usage.users}
@@ -316,6 +349,17 @@ export default function SettingsPage() {
   );
 }
 
+function Intro({ title, body }: { title: string; body: string }) {
+  return (
+    <div>
+      <h2 className="text-base font-bold">{title}</h2>
+      <p className="mt-1.5 max-w-[60ch] text-sm leading-relaxed text-muted-foreground">
+        {body}
+      </p>
+    </div>
+  );
+}
+
 type UsageProps = {
   label: string;
   used: number;
@@ -328,16 +372,19 @@ function Usage({ label, used, limit, of, unlimited }: UsageProps) {
   const full = limit !== null && used >= limit;
 
   return (
-    <div className="plan__row">
-      <dt>{label}</dt>
-      <dd>
-        <span>{limit === null ? fill(unlimited, { used }) : fill(of, { used, limit })}</span>
+    <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-2.5">
+      <dt className="text-xs text-ink-2">{label}</dt>
+      <dd className="m-0 flex items-center gap-2.5">
+        <span className="min-w-[72px] text-xs tabular-nums">
+          {limit === null ? fill(unlimited, { used }) : fill(of, { used, limit })}
+        </span>
         {limit !== null && (
           <span
-            className={full ? "plan__bar plan__bar--full" : "plan__bar"}
+            className="block h-1.5 flex-1 overflow-hidden rounded-full bg-surface-alt"
             aria-hidden="true"
           >
             <span
+              className={cn("block h-full", full ? "bg-warning" : "bg-brand")}
               style={{
                 width: `${Math.min(100, Math.round((used / Math.max(limit, 1)) * 100))}%`,
               }}

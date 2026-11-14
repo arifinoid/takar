@@ -10,11 +10,22 @@ import {
 import { Plus, Receipt, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import {
+  LoadingRegion,
+  SkeletonForm,
+  SkeletonList,
+} from "@/components/skeletons";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import { formatDateTime, formatMoney, formatQty, normalizeDecimal } from "@/lib/format";
 import { fill, useI18n, type Dictionary } from "@/lib/i18n";
 import { readToken } from "@/lib/session";
 import { useMe } from "@/lib/use-me";
+import { cn } from "@/lib/utils";
 
 import { AppShell } from "../app-shell";
 
@@ -341,71 +352,98 @@ export default function SalesPage() {
   return (
     <>
       {session.status === "loading" && (
-        <main className="page">
-          <p className="lede">{t.sales.loading}</p>
-        </main>
+        <AppShell active="pos">
+          <div className="flex max-w-[1100px] flex-col gap-4">
+            <LoadingRegion label={t.sales.loading} className="flex flex-col gap-4">
+              <SkeletonForm fields={4} />
+              <SkeletonList rows={3} />
+            </LoadingRegion>
+          </div>
+        </AppShell>
       )}
 
       {session.status === "error" && (
-        <main className="page">
-          <div className="card">
-            <p>{t.dashboard.error}</p>
-            <button
-              className="btn btn--secondary"
+        <main className="mx-auto max-w-[1100px] p-6">
+          <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
+            <p className="text-sm text-muted-foreground">{t.dashboard.error}</p>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="self-start"
               type="button"
               onClick={() => void reloadSession()}
             >
               {t.dashboard.retry}
-            </button>
+            </Button>
           </div>
         </main>
       )}
 
       {session.status === "ready" && (
         <AppShell me={session.me} active="pos" onSignOut={signOut}>
-          <div className="sales">
-            <header className="sales__header">
-              <div>
-                <h1>{t.sales.title}</h1>
-                <p className="sales__sub">{t.sales.subtitle}</p>
-              </div>
+          <div className="flex max-w-[1100px] flex-col gap-4">
+            <header>
+              <h1 className="text-xl font-extrabold tracking-tight sm:text-3xl">
+                {t.sales.title}
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t.sales.subtitle}
+              </p>
             </header>
 
             {notice && (
-              <p className="notice" role="status">
+              <p
+                role="status"
+                className="rounded-lg bg-brand-soft px-3 py-2.5 text-xs font-medium text-brand"
+              >
                 {notice}
               </p>
             )}
 
-            {load.status === "loading" && <p className="lede">{t.sales.loading}</p>}
+            {load.status === "loading" && (
+              <LoadingRegion
+                label={t.sales.loading}
+                className="flex flex-col gap-4"
+              >
+                <SkeletonForm fields={4} />
+                <SkeletonList rows={3} />
+              </LoadingRegion>
+            )}
 
             {load.status === "error" && (
-              <div className="card">
-                <p>{t.sales.error}</p>
-                <button
-                  className="btn btn--secondary"
+              <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
+                <p className="text-sm text-muted-foreground">{t.sales.error}</p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="self-start"
                   type="button"
                   onClick={() => window.location.reload()}
                 >
                   {t.sales.retry}
-                </button>
+                </Button>
               </div>
             )}
 
             {load.status === "ready" && (
               <>
                 {canWrite && (
-                  <form className="sale-form" onSubmit={submit}>
-                    <div className="sale-form__head">
-                      <h2>{t.sales.form.title}</h2>
-                      <p>{t.sales.form.hint}</p>
+                  <form
+                    className="flex flex-col gap-3.5 rounded-xl border border-border bg-card p-4 sm:p-4.5"
+                    onSubmit={submit}
+                  >
+                    <div>
+                      <h2 className="text-base font-bold">
+                        {t.sales.form.title}
+                      </h2>
+                      <p className="mt-0.5 max-w-[70ch] text-xs leading-relaxed text-ink-3">
+                        {t.sales.form.hint}
+                      </p>
                     </div>
 
-                    <div className="sale-form__meta">
-                      <label className="field">
-                        <span className="field__label">{t.sales.form.channel}</span>
-                        <select
-                          className="field__input"
+                    <div className="grid gap-2.5 sm:grid-cols-[160px_190px_minmax(0,1fr)]">
+                      <Field label={t.sales.form.channel}>
+                        <Select
                           value={channel}
                           onChange={(event) => setChannel(event.target.value)}
                         >
@@ -414,41 +452,39 @@ export default function SalesPage() {
                               {channelLabel(t, value)}
                             </option>
                           ))}
-                        </select>
-                      </label>
+                        </Select>
+                      </Field>
 
-                      <label className="field">
-                        <span className="field__label">{t.sales.form.soldAt}</span>
-                        <input
-                          className="field__input"
+                      <Field label={t.sales.form.soldAt}>
+                        <Input
                           type="datetime-local"
                           value={soldAt}
                           onChange={(event) => setSoldAt(event.target.value)}
                         />
-                      </label>
+                      </Field>
 
-                      <label className="field field--grow">
-                        <span className="field__label">{t.sales.form.note}</span>
-                        <input
-                          className="field__input"
+                      <Field label={t.sales.form.note}>
+                        <Input
                           type="text"
                           maxLength={500}
                           placeholder={t.sales.form.notePlaceholder}
                           value={note}
                           onChange={(event) => setNote(event.target.value)}
                         />
-                      </label>
+                      </Field>
                     </div>
 
-                    <div className="sale-lines">
+                    <div className="flex flex-col gap-2.5">
                       {lines.map((line) => (
-                        <div className="sale-line" key={line.key}>
-                          <label className="field field--grow">
-                            <span className="field__label">
-                              {t.sales.form.product}
-                            </span>
-                            <select
-                              className="field__input"
+                        <div
+                          className="flex flex-wrap items-end gap-2.5"
+                          key={line.key}
+                        >
+                          <Field
+                            label={t.sales.form.product}
+                            className="min-w-[200px] flex-1"
+                          >
+                            <Select
                               value={line.productId}
                               onChange={(event) =>
                                 pickProduct(line.key, event.target.value)
@@ -460,16 +496,15 @@ export default function SalesPage() {
                               </option>
                               {products.map((product) => (
                                 <option key={product.id} value={product.id}>
-                                  {product.name} · {formatQty(product.stock_qty, locale)}
+                                  {product.name} ·{" "}
+                                  {formatQty(product.stock_qty, locale)}
                                 </option>
                               ))}
-                            </select>
-                          </label>
+                            </Select>
+                          </Field>
 
-                          <label className="field field--qty">
-                            <span className="field__label">{t.sales.form.qty}</span>
-                            <input
-                              className="field__input"
+                          <Field label={t.sales.form.qty} className="w-[100px]">
+                            <Input
                               type="text"
                               inputMode="decimal"
                               value={line.qty}
@@ -478,26 +513,26 @@ export default function SalesPage() {
                               }
                               required
                             />
-                          </label>
+                          </Field>
 
-                          <label className="field field--price">
-                            <span className="field__label">
-                              {t.sales.form.price}
-                            </span>
-                            <input
-                              className="field__input"
+                          <Field label={t.sales.form.price} className="w-[150px]">
+                            <Input
                               type="text"
                               inputMode="decimal"
                               placeholder="0"
                               value={line.price}
                               onChange={(event) =>
-                                updateLine(line.key, { price: event.target.value })
+                                updateLine(line.key, {
+                                  price: event.target.value,
+                                })
                               }
                             />
-                          </label>
+                          </Field>
 
-                          <button
-                            className="btn btn--ghost sale-line__remove"
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-11"
                             type="button"
                             aria-label={t.sales.form.removeLine}
                             disabled={lines.length === 1}
@@ -508,14 +543,14 @@ export default function SalesPage() {
                             }
                           >
                             <Trash2 size={15} />
-                          </button>
+                          </Button>
                         </div>
                       ))}
                     </div>
 
-                    <div className="sale-form__actions">
-                      <button
-                        className="btn btn--secondary"
+                    <div className="flex flex-wrap items-center gap-2.5 border-t border-border pt-3.5">
+                      <Button
+                        variant="secondary"
                         type="button"
                         onClick={() =>
                           setLines((current) => [...current, emptyLine()])
@@ -523,24 +558,27 @@ export default function SalesPage() {
                       >
                         <Plus size={15} />
                         {t.sales.form.addLine}
-                      </button>
+                      </Button>
 
-                      <div className="sale-form__total">
-                        <span>{t.sales.form.total}</span>
-                        <strong>{formatMoney(total, locale)}</strong>
+                      <div className="flex items-baseline gap-2 sm:ml-auto">
+                        <span className="text-2xs font-semibold tracking-wide text-ink-3 uppercase">
+                          {t.sales.form.total}
+                        </span>
+                        <strong className="text-xl font-extrabold tabular-nums">
+                          {formatMoney(total, locale)}
+                        </strong>
                       </div>
 
-                      <button
-                        className="btn btn--primary"
-                        type="submit"
-                        disabled={saving}
-                      >
+                      <Button type="submit" disabled={saving}>
                         {saving ? t.sales.form.saving : t.sales.form.submit}
-                      </button>
+                      </Button>
                     </div>
 
                     {error && (
-                      <p className="form__error" role="alert">
+                      <p
+                        role="alert"
+                        className="rounded-lg bg-danger-soft px-3 py-2.5 text-xs text-destructive"
+                      >
                         {error}
                       </p>
                     )}
@@ -548,26 +586,30 @@ export default function SalesPage() {
                 )}
 
                 {canWrite && (
-                  <section className="sale-import">
-                    <div className="sale-import__head">
+                  <section className="flex flex-col gap-3 rounded-xl border border-dashed border-input bg-card p-4 sm:p-4.5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <h2>{t.sales.import.title}</h2>
-                        <p>{t.sales.import.body}</p>
+                        <h2 className="text-base font-bold">
+                          {t.sales.import.title}
+                        </h2>
+                        <p className="mt-0.5 max-w-[66ch] text-xs leading-relaxed text-ink-3">
+                          {t.sales.import.body}
+                        </p>
                       </div>
 
-                      <a
-                        className="btn btn--secondary"
-                        href="/templates/sales-import.csv"
-                        download
-                      >
-                        {t.sales.import.download}
-                      </a>
+                      <Button variant="secondary" asChild className="shrink-0">
+                        <a href="/templates/sales-import.csv" download>
+                          {t.sales.import.download}
+                        </a>
+                      </Button>
                     </div>
 
-                    <form className="sale-import__form" onSubmit={submitImport}>
+                    <form
+                      className="flex flex-wrap items-center gap-2.5"
+                      onSubmit={submitImport}
+                    >
                       <input
                         key={importKey}
-                        className="sale-import__file"
                         type="file"
                         accept=".csv,text/csv"
                         onChange={(event) => {
@@ -576,27 +618,33 @@ export default function SalesPage() {
                           setImportError(null);
                         }}
                         required
+                        className="max-w-full text-sm text-muted-foreground file:mr-2.5 file:h-9 file:cursor-pointer file:rounded-lg file:border file:border-input file:bg-surface-alt file:px-3 file:text-xs file:font-semibold file:text-ink"
                       />
 
-                      <button
-                        className="btn btn--primary"
+                      <Button
                         type="submit"
                         disabled={importing || !file}
                       >
                         {importing
                           ? t.sales.import.importing
                           : t.sales.import.submit}
-                      </button>
+                      </Button>
                     </form>
 
                     {importError && (
-                      <p className="form__error" role="alert">
+                      <p
+                        role="alert"
+                        className="rounded-lg bg-danger-soft px-3 py-2.5 text-xs text-destructive"
+                      >
                         {importError}
                       </p>
                     )}
 
                     {importResult && (
-                      <div className="sale-import__result" role="status">
+                      <div
+                        role="status"
+                        className="rounded-lg bg-surface-alt px-3 py-2.5 text-sm"
+                      >
                         <p>
                           {fill(t.sales.import.summary, {
                             created: importResult.created,
@@ -606,11 +654,11 @@ export default function SalesPage() {
                         </p>
 
                         {importResult.rejected > 0 && (
-                          <ul>
+                          <ul className="mt-1.5 flex list-none flex-col gap-1 p-0 text-destructive">
                             {importResult.rows
                               .filter((row) => row.status === "rejected")
                               .map((row) => (
-                                <li key={row.row}>
+                                <li key={row.row} className="text-xs">
                                   <strong>
                                     {fill(t.sales.import.row, { row: row.row })}
                                   </strong>
@@ -625,45 +673,55 @@ export default function SalesPage() {
                   </section>
                 )}
 
-                <section className="sales-list">
-                  <h2>{t.sales.list.title}</h2>
+                <section className="flex flex-col gap-2.5">
+                  <h2 className="text-base font-bold">{t.sales.list.title}</h2>
 
                   {sales.length === 0 ? (
-                    <div className="sales-list__empty">
+                    <div className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card px-5 py-9 text-center text-ink-3">
                       <Receipt size={24} />
-                      <p>{t.sales.list.empty}</p>
+                      <p className="text-sm">{t.sales.list.empty}</p>
                     </div>
                   ) : (
                     sales.map((sale) => (
-                      <article className="sale" key={sale.id}>
-                        <header className="sale__head">
-                          <div className="sale__meta">
-                            <strong>{formatDateTime(sale.sold_at, locale)}</strong>
-                            <span className="pill pill--neutral">
-                              {channelLabel(t, sale.channel)}
-                            </span>
+                      <article
+                        className="flex flex-col gap-2.5 rounded-xl border border-border bg-card px-4 py-3.5"
+                        key={sale.id}
+                      >
+                        <header className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <strong className="text-base font-bold">
+                              {formatDateTime(sale.sold_at, locale)}
+                            </strong>
+                            <Badge>{channelLabel(t, sale.channel)}</Badge>
                           </div>
-                          <strong className="sale__total">
+                          <strong className="text-lg font-extrabold tabular-nums">
                             {formatMoney(Number(sale.total), locale)}
                           </strong>
                         </header>
 
-                        <ul className="sale__lines">
+                        <ul className="flex list-none flex-col gap-1 p-0">
                           {sale.items.map((item) => (
-                            <li key={item.product_id}>
+                            <li
+                              key={item.product_id}
+                              className="grid grid-cols-[minmax(0,1fr)_auto_90px] items-baseline gap-2.5 border-t border-border pt-1 text-sm"
+                            >
                               <span>{item.product_name}</span>
-                              <span className="sale__calc">
+                              <span className="text-xs text-ink-3 tabular-nums">
                                 {formatQty(item.qty, locale)} ×{" "}
                                 {formatMoney(Number(item.price), locale)}
                               </span>
-                              <strong>
+                              <strong className="text-right tabular-nums">
                                 {formatMoney(Number(item.subtotal), locale)}
                               </strong>
                             </li>
                           ))}
                         </ul>
 
-                        {sale.note && <p className="sale__note">{sale.note}</p>}
+                        {sale.note && (
+                          <p className="text-xs text-muted-foreground">
+                            {sale.note}
+                          </p>
+                        )}
                       </article>
                     ))
                   )}
@@ -674,6 +732,23 @@ export default function SalesPage() {
         </AppShell>
       )}
     </>
+  );
+}
+
+function Field({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className={cn("flex flex-col gap-1.5", className)}>
+      <Label>{label}</Label>
+      {children}
+    </label>
   );
 }
 

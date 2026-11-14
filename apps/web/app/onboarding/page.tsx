@@ -5,6 +5,13 @@ import { ArrowRight, CheckCircle2, Download, Upload } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import {
+  LoadingRegion,
+  SkeletonList,
+} from "@/components/skeletons";
+import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/field";
+import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import { fill, useI18n, type Dictionary } from "@/lib/i18n";
 import { readToken } from "@/lib/session";
@@ -123,72 +130,111 @@ export default function OnboardingPage() {
 
   return (
     <>
-      {session.status !== "ready" && (
-        <main className="page">
-          {session.status === "loading" ? (
-            <p className="lede">{t.dashboard.loading}</p>
-          ) : (
-            <div className="card">
-              <p>{t.dashboard.error}</p>
-              <button
-                className="btn btn--secondary"
-                type="button"
-                onClick={() => void reloadSession()}
-              >
-                {t.dashboard.retry}
-              </button>
-            </div>
-          )}
+      {session.status === "loading" && (
+        <AppShell active="overview">
+          <div className="flex max-w-[1000px] flex-col gap-4">
+            <LoadingRegion
+              label={t.dashboard.loading}
+              className="flex flex-col gap-4"
+            >
+              <SkeletonList rows={4} />
+            </LoadingRegion>
+          </div>
+        </AppShell>
+      )}
+
+      {session.status === "error" && (
+        <main className="mx-auto max-w-[1000px] p-6">
+          <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
+            <p className="text-sm text-muted-foreground">{t.dashboard.error}</p>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="self-start"
+              type="button"
+              onClick={() => void reloadSession()}
+            >
+              {t.dashboard.retry}
+            </Button>
+          </div>
         </main>
       )}
 
       {session.status === "ready" && (
         <AppShell me={session.me} active="overview" onSignOut={signOut}>
-          <div className="onboarding">
-            <header className="dash__header">
+          <div className="flex max-w-[1000px] flex-col gap-4">
+            <header className="flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h1>{t.onboarding.title}</h1>
-                <p className="dash__sub">{t.onboarding.subtitle}</p>
+                <h1 className="text-xl font-extrabold tracking-tight sm:text-3xl">
+                  {t.onboarding.title}
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t.onboarding.subtitle}
+                </p>
               </div>
-              <Link className="btn btn--ghost dash__open" href="/stock">
-                {t.onboarding.openStock}
-                <ArrowRight size={15} />
-              </Link>
+              <Button variant="ghost" asChild>
+                <Link href="/stock">
+                  {t.onboarding.openStock}
+                  <ArrowRight size={15} />
+                </Link>
+              </Button>
             </header>
 
-            {!canWrite && <p className="notice">{t.onboarding.noPermission}</p>}
-
-            {error && (
-              <p className="form__error" role="alert">
-                {error}
+            {!canWrite && (
+              <p className="rounded-lg bg-brand-soft px-3 py-2.5 text-xs text-brand">
+                {t.onboarding.noPermission}
               </p>
             )}
 
+            {error && <FormError>{error}</FormError>}
+
             {result && <Result result={result} />}
 
-            <section className="panel">
-              <header className="panel__head">
-                <div>
-                  <h2>{t.onboarding.templates.title}</h2>
-                  <p>{t.onboarding.templates.subtitle}</p>
-                </div>
+            <section className="flex flex-col rounded-xl border border-border bg-card">
+              <header className="border-b border-border px-4 py-3">
+                <h2 className="text-base font-bold tracking-tight">
+                  {t.onboarding.templates.title}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t.onboarding.templates.subtitle}
+                </p>
               </header>
 
-              <div className="tpl-grid">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3 p-4">
+                {templates === null &&
+                  Array.from({ length: 4 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="flex flex-col gap-2 rounded-xl border border-border bg-surface-alt p-3.5"
+                    >
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-2.5 w-full" />
+                      <Skeleton className="h-2.5 w-2/3" />
+                      <Skeleton className="mt-auto h-9 w-full rounded-lg" />
+                    </div>
+                  ))}
+
                 {(templates ?? []).map((template) => {
                   const copy = templateCopy(t, template.id);
 
                   return (
-                    <article className="tpl" key={template.id}>
-                      <strong className="tpl__name">{copy.name}</strong>
-                      <p className="tpl__desc">{copy.description}</p>
-                      <span className="tpl__count">
+                    <article
+                      className="flex flex-col gap-1 rounded-xl border border-border bg-surface-alt p-3.5"
+                      key={template.id}
+                    >
+                      <strong className="text-sm font-bold">{copy.name}</strong>
+                      <p className="min-h-8 text-[11px] leading-[1.45] text-muted-foreground">
+                        {copy.description}
+                      </p>
+                      <span className="mb-2 text-[10.5px] text-ink-3">
                         {fill(t.onboarding.templates.items, {
                           count: template.item_count,
                         })}
                       </span>
-                      <button
-                        className="btn btn--secondary tpl__apply"
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="mt-auto h-9"
                         type="button"
                         disabled={!canWrite || busy !== null}
                         onClick={() => void applyTemplate(template.id)}
@@ -196,31 +242,35 @@ export default function OnboardingPage() {
                         {busy === template.id
                           ? t.onboarding.templates.applying
                           : t.onboarding.templates.apply}
-                      </button>
+                      </Button>
                     </article>
                   );
                 })}
               </div>
             </section>
 
-            <section className="panel">
-              <header className="panel__head">
-                <div>
-                  <h2>{t.onboarding.import.title}</h2>
-                  <p>{t.onboarding.import.subtitle}</p>
-                </div>
+            <section className="flex flex-col rounded-xl border border-border bg-card">
+              <header className="border-b border-border px-4 py-3">
+                <h2 className="text-base font-bold tracking-tight">
+                  {t.onboarding.import.title}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t.onboarding.import.subtitle}
+                </p>
               </header>
 
-              <div className="import">
-                <code className="import__columns">{t.onboarding.import.columns}</code>
-                <p className="import__hint">
+              <div className="flex flex-col gap-2 p-4">
+                <code className="rounded-lg border border-border bg-surface-alt px-2.5 py-2 font-mono text-[11px] text-muted-foreground">
+                  {t.onboarding.import.columns}
+                </code>
+                <p className="text-[10.5px] text-ink-3">
                   {fill(t.onboarding.import.accepted, { max: MAX_ROWS })}
                 </p>
 
-                <div className="import__actions">
+                <div className="mt-1 flex flex-wrap gap-2">
                   <input
                     ref={input}
-                    className="import__file"
+                    className="hidden"
                     type="file"
                     accept=".xlsx,.xls,.ods,.csv"
                     onChange={(event) => {
@@ -228,8 +278,8 @@ export default function OnboardingPage() {
                       if (file) void upload(file);
                     }}
                   />
-                  <button
-                    className="btn btn--primary"
+                  <Button
+                    className="h-10"
                     type="button"
                     disabled={!canWrite || busy !== null}
                     onClick={() => input.current?.click()}
@@ -238,15 +288,16 @@ export default function OnboardingPage() {
                     {busy === "upload"
                       ? t.onboarding.import.uploading
                       : t.onboarding.import.pick}
-                  </button>
-                  <button
-                    className="btn btn--ghost"
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="h-10"
                     type="button"
                     onClick={downloadSample}
                   >
                     <Download size={15} />
                     {t.onboarding.import.sample}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </section>
@@ -261,25 +312,34 @@ function Result({ result }: { result: OnboardingResult }) {
   const { t } = useI18n();
 
   return (
-    <div className="result" role="status">
-      <div className="result__summary">
+    <div
+      className="flex flex-col gap-2 rounded-xl bg-brand-soft px-3.5 py-3"
+      role="status"
+    >
+      <div className="flex flex-wrap items-center gap-2.5 text-xs text-brand">
         <CheckCircle2 size={16} />
-        <strong>
+        <strong className="text-sm font-bold">
           {fill(t.onboarding.result.created, { count: result.created })}
         </strong>
         {result.skipped > 0 && (
-          <span>{fill(t.onboarding.result.skipped, { count: result.skipped })}</span>
+          <span className="text-muted-foreground">
+            {fill(t.onboarding.result.skipped, { count: result.skipped })}
+          </span>
         )}
         {result.errors.length > 0 && (
-          <span>{fill(t.onboarding.result.errors, { count: result.errors.length })}</span>
+          <span className="text-muted-foreground">
+            {fill(t.onboarding.result.errors, { count: result.errors.length })}
+          </span>
         )}
       </div>
 
       {result.errors.length > 0 && (
-        <ul className="result__errors">
+        <ul className="flex flex-col gap-1 text-[10.5px] text-destructive">
           {result.errors.map((error) => (
             <li key={error.row}>
-              <span>{fill(t.onboarding.import.rowError, { row: error.row })}</span>
+              <span className="mr-1.5 font-semibold">
+                {fill(t.onboarding.import.rowError, { row: error.row })}
+              </span>
               {messageFor(t, error.code)}
             </li>
           ))}

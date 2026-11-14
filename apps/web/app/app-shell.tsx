@@ -17,7 +17,10 @@ import {
 import Link from "next/link";
 import type { ComponentType } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 import { LocaleSwitch } from "./locale-switch";
 
@@ -39,9 +42,14 @@ type Item = {
 };
 
 type Props = {
-  me: MeResponse;
+  /**
+   * Null while /me is still in flight: the chrome renders immediately with
+   * placeholders for the tenant and the user, so a reload never shows the page
+   * without its sidebar.
+   */
+  me?: MeResponse | null;
   active: Active;
-  onSignOut: () => void;
+  onSignOut?: () => void;
   children: React.ReactNode;
 };
 
@@ -122,37 +130,52 @@ export function AppShell({ me, active, onSignOut, children }: Props) {
   ];
 
   return (
-    <div className="shell">
-      <aside className="shell__sidebar">
-        <div className="shell__brand">
-          <span className="shell__logo">
+    <div className="min-h-dvh min-[961px]:grid min-[961px]:grid-cols-[246px_minmax(0,1fr)]">
+      <aside className="hidden min-[961px]:sticky min-[961px]:top-0 min-[961px]:flex min-[961px]:h-dvh min-[961px]:flex-col min-[961px]:gap-4 min-[961px]:overflow-y-auto min-[961px]:border-r min-[961px]:border-border min-[961px]:bg-surface min-[961px]:p-[18px]">
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-8 items-center justify-center rounded-[9px] bg-brand text-white">
             <ChefHat size={17} />
           </span>
-          <span className="shell__brand-text">
-            <strong>Takar</strong>
-            <span>PPIC + POS</span>
+          <span className="flex flex-col leading-[1.2]">
+            <strong className="text-base font-bold">Takar</strong>
+            <span className="text-[9px] font-semibold tracking-[0.08em] text-ink-3">
+              PPIC + POS
+            </span>
           </span>
         </div>
 
-        <div className="shell__tenant">
-          <div>
-            <strong>{me.tenant.name}</strong>
-            <span>{t.dashboard.roles[me.role]}</span>
-          </div>
+        <div className="flex justify-between rounded-lg border border-border bg-surface-alt px-3 py-2.5">
+          {me ? (
+            <div>
+              <strong className="block text-xs font-bold">{me.tenant.name}</strong>
+              <span className="text-[9.5px] text-ink-3">
+                {t.dashboard.roles[me.role]}
+              </span>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5" aria-hidden="true">
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-2.5 w-16" />
+            </div>
+          )}
         </div>
 
-        <nav className="shell__nav" aria-label={t.nav.main}>
+        <nav className="flex flex-col gap-3" aria-label={t.nav.main}>
           {groups.map((group) => (
-            <div className="shell__group" key={group.label}>
-              <p className="shell__group-label">{group.label}</p>
+            <div className="flex flex-col gap-0.5" key={group.label}>
+              <p className="px-2.5 py-1 text-[9px] font-bold tracking-[0.09em] text-ink-3">
+                {group.label}
+              </p>
               {group.items.map((item) =>
                 item.href ? (
                   <Link
                     key={item.key}
                     href={item.href}
-                    className={`shell__nav-item${
-                      item.key === active ? " shell__nav-item--active" : ""
-                    }`}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-semibold text-ink-2 no-underline transition-colors hover:bg-surface-alt",
+                      item.key === active &&
+                        "bg-brand-soft font-bold text-brand hover:bg-brand-soft",
+                    )}
                     aria-current={item.key === active ? "page" : undefined}
                   >
                     <item.icon size={16} />
@@ -161,7 +184,7 @@ export function AppShell({ me, active, onSignOut, children }: Props) {
                 ) : (
                   <span
                     key={item.key}
-                    className="shell__nav-item shell__nav-item--disabled"
+                    className="flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-semibold text-ink-2 opacity-50"
                     title={t.nav.soon}
                     aria-disabled="true"
                   >
@@ -174,64 +197,108 @@ export function AppShell({ me, active, onSignOut, children }: Props) {
           ))}
         </nav>
 
-        <div className="shell__footer">
-          <div className="shell__user">
-            <span className="shell__avatar">{initials(me.user.name)}</span>
-            <div>
-              <strong>{me.user.name}</strong>
-              <span>{t.dashboard.roles[me.role]}</span>
-            </div>
+        <div className="mt-auto flex flex-col gap-2.5 border-t border-border pt-3.5">
+          <div className="flex items-center gap-2.5">
+            {me ? (
+              <>
+                <span className="flex size-7 items-center justify-center rounded-full bg-ink text-[10px] font-bold text-white">
+                  {initials(me.user.name)}
+                </span>
+                <div>
+                  <strong className="block text-xs font-bold">
+                    {me.user.name}
+                  </strong>
+                  <span className="text-[9.5px] text-ink-3">
+                    {t.dashboard.roles[me.role]}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-2.5" aria-hidden="true">
+                <Skeleton className="size-7 rounded-full" />
+                <div className="flex flex-col gap-1.5">
+                  <Skeleton className="h-2.5 w-24" />
+                  <Skeleton className="h-2 w-14" />
+                </div>
+              </div>
+            )}
           </div>
-          <div className="shell__footer-actions">
+          <div className="flex items-center justify-between gap-2">
             <LocaleSwitch />
-            <button className="btn btn--ghost" type="button" onClick={onSignOut}>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={onSignOut}
+              disabled={!onSignOut}
+            >
               {t.nav.signOut}
-            </button>
+            </Button>
           </div>
         </div>
       </aside>
 
-      <div className="shell__main">
-        <header className="shell__topbar">
-          <div className="shell__topbar-tenant">
-            <span>{t.dashboard.tenant}</span>
-            <strong>{me.tenant.name}</strong>
-          </div>
+      <div className="flex min-w-0 flex-col">
+        <header className="hidden h-[60px] items-center justify-between border-b border-border bg-surface px-6 min-[961px]:flex">
+          {me ? (
+            <div className="flex flex-col leading-[1.3]">
+              <span className="text-[9px] font-bold tracking-[0.08em] text-ink-3 uppercase">
+                {t.dashboard.tenant}
+              </span>
+              <strong className="text-sm font-bold">{me.tenant.name}</strong>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5" aria-hidden="true">
+              <Skeleton className="h-2 w-12" />
+              <Skeleton className="h-3 w-32" />
+            </div>
+          )}
           <LocaleSwitch />
         </header>
 
-        <div className="shell__content">{children}</div>
+        <div className="px-4 pt-4 pb-24 min-[961px]:px-7 min-[961px]:pt-6 min-[961px]:pb-10">
+          {children}
+        </div>
       </div>
 
-      <nav className="tabbar" aria-label={t.nav.main}>
+      <nav
+        className="fixed inset-x-4 bottom-3 z-20 grid h-14 grid-cols-4 gap-1 rounded-[28px] border border-border bg-white/95 p-1.5 backdrop-blur min-[961px]:hidden"
+        aria-label={t.nav.main}
+      >
         <Link
           href="/dashboard"
-          className={`tabbar__item${
-            active === "overview" ? " tabbar__item--active" : ""
-          }`}
+          className={cn(
+            "flex flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-semibold text-ink-3 no-underline",
+            active === "overview" && "bg-brand-soft font-bold text-brand",
+          )}
         >
           <LayoutDashboard size={18} />
           <span>{t.nav.mobileHome}</span>
         </Link>
         <Link
           href="/stock"
-          className={`tabbar__item${
-            active === "stock" ? " tabbar__item--active" : ""
-          }`}
+          className={cn(
+            "flex flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-semibold text-ink-3 no-underline",
+            active === "stock" && "bg-brand-soft font-bold text-brand",
+          )}
         >
           <Package size={18} />
           <span>{t.nav.mobileStock}</span>
         </Link>
         <Link
           href="/production"
-          className={`tabbar__item${
-            active === "production" ? " tabbar__item--active" : ""
-          }`}
+          className={cn(
+            "flex flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-semibold text-ink-3 no-underline",
+            active === "production" && "bg-brand-soft font-bold text-brand",
+          )}
         >
           <ChefHat size={18} />
           <span>{t.nav.mobileProduction}</span>
         </Link>
-        <span className="tabbar__item tabbar__item--disabled" aria-disabled="true">
+        <span
+          className="flex flex-col items-center justify-center gap-0.5 rounded-[22px] text-[9px] font-semibold text-ink-3 opacity-50"
+          aria-disabled="true"
+        >
           <MessageCircle size={18} />
           <span>{t.nav.mobileAlerts}</span>
         </span>
