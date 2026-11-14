@@ -64,26 +64,28 @@ export default function DashboardPage() {
 
   return (
     <>
-      {session.status !== "ready" && (
-        <main className="mx-auto max-w-[1200px] p-6">
-          {session.status === "loading" ? (
+      {session.status === "loading" && (
+        <AppShell active="overview">
+          <div className="flex max-w-[1200px] flex-col gap-4">
             <DashboardSkeleton label={t.dashboard.loading} />
-          ) : (
-            <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
-              <p className="text-sm text-muted-foreground">
-                {t.dashboard.error}
-              </p>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="self-start"
-                type="button"
-                onClick={() => void reloadSession()}
-              >
-                {t.dashboard.retry}
-              </Button>
-            </div>
-          )}
+          </div>
+        </AppShell>
+      )}
+
+      {session.status === "error" && (
+        <main className="mx-auto max-w-[1200px] p-6">
+          <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
+            <p className="text-sm text-muted-foreground">{t.dashboard.error}</p>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="self-start"
+              type="button"
+              onClick={() => void reloadSession()}
+            >
+              {t.dashboard.retry}
+            </Button>
+          </div>
         </main>
       )}
 

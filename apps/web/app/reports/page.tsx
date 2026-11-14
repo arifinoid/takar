@@ -70,15 +70,17 @@ export default function ReportsPage() {
   return (
     <>
       {session.status === "loading" && (
-        <main className="mx-auto max-w-[1100px] p-6">
-          <LoadingRegion
-            label={t.reports.loading}
-            className="flex flex-col gap-4"
-          >
-            <SkeletonStats count={2} />
-            <SkeletonList rows={3} />
-          </LoadingRegion>
-        </main>
+        <AppShell active="reports">
+          <div className="flex max-w-[1100px] flex-col gap-4">
+            <LoadingRegion
+              label={t.reports.loading}
+              className="flex flex-col gap-4"
+            >
+              <SkeletonStats count={2} />
+              <SkeletonList rows={3} />
+            </LoadingRegion>
+          </div>
+        </AppShell>
       )}
 
       {session.status === "error" && (

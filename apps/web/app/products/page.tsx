@@ -142,11 +142,13 @@ export default function ProductsPage() {
   return (
     <>
       {session.status === "loading" && (
-        <main className="mx-auto max-w-[1100px] p-6">
-          <LoadingRegion label={t.products.loading}>
-            <SkeletonList rows={4} />
-          </LoadingRegion>
-        </main>
+        <AppShell active="products">
+          <div className="flex max-w-[1100px] flex-col gap-4">
+            <LoadingRegion label={t.products.loading}>
+              <SkeletonList rows={4} />
+            </LoadingRegion>
+          </div>
+        </AppShell>
       )}
 
       {session.status === "error" && (

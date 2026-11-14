@@ -64,11 +64,13 @@ export default function PurchasingPage() {
   return (
     <>
       {session.status === "loading" && (
-        <main className="mx-auto max-w-[1000px] p-6">
-          <LoadingRegion label={t.purchasing.loading}>
-            <SkeletonList rows={4} />
-          </LoadingRegion>
-        </main>
+        <AppShell active="purchasing">
+          <div className="flex max-w-[1000px] flex-col gap-4">
+            <LoadingRegion label={t.purchasing.loading}>
+              <SkeletonList rows={4} />
+            </LoadingRegion>
+          </div>
+        </AppShell>
       )}
 
       {session.status === "error" && (

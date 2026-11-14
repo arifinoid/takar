@@ -135,15 +135,17 @@ export default function SettingsPage() {
   return (
     <>
       {session.status === "loading" && (
-        <main className="mx-auto max-w-[720px] p-6">
-          <LoadingRegion
-            label={t.settings.loading}
-            className="flex flex-col gap-4"
-          >
-            <SkeletonForm fields={2} />
-            <SkeletonList rows={2} />
-          </LoadingRegion>
-        </main>
+        <AppShell active="settings">
+          <div className="flex max-w-[720px] flex-col gap-4">
+            <LoadingRegion
+              label={t.settings.loading}
+              className="flex flex-col gap-4"
+            >
+              <SkeletonForm fields={2} />
+              <SkeletonList rows={2} />
+            </LoadingRegion>
+          </div>
+        </AppShell>
       )}
 
       {session.status === "error" && (

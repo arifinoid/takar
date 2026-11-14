@@ -366,11 +366,13 @@ export default function StockPage() {
   return (
     <>
       {session.status === "loading" && (
-        <main className="mx-auto max-w-[1200px] p-6">
-          <LoadingRegion label={t.stock.loading}>
-            <SkeletonTable rows={6} columns={5} />
-          </LoadingRegion>
-        </main>
+        <AppShell active="stock">
+          <div className="flex max-w-[1200px] flex-col gap-4">
+            <LoadingRegion label={t.stock.loading}>
+              <SkeletonTable rows={6} columns={5} />
+            </LoadingRegion>
+          </div>
+        </AppShell>
       )}
 
       {session.status === "error" && (

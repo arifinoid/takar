@@ -100,6 +100,8 @@ Components live in `components/ui` and are copied shadcn source, not a dependenc
 
 Loading uses skeletons, never a spinner or a "Memuat…" line: `components/skeletons.tsx` exports `LoadingRegion` (the `role="status"` wrapper carrying the translated label for screen readers), `SkeletonStats`, `SkeletonTable`, `SkeletonList` and `SkeletonForm`. A page composes the shape it is about to render. `useMe` keeps the last `/me` answer for the tab, so navigating between pages does not blank the shell.
 
+`AppShell` takes `me` as optional. While `/me` is in flight a page renders `<AppShell active="…">` with its skeleton inside, so the sidebar, topbar and tab bar are present from the first paint; the tenant and user blocks show placeholders and sign-out stays disabled until the session resolves. Only the error state renders outside the shell, because there is no session to hang the chrome on.
+
 ### Stock model
 
 Stock is a batch ledger, not a scalar. `material_batches.qty_remaining` is on-hand per batch; `stock_movements` is the audit trail. Never add a single `stock` column to `materials`. Finished goods currently rely on `products.stock_qty` — see the open decision about batch-tracking finished goods before extending it.
